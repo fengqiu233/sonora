@@ -18,6 +18,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Buttons on the Discord status, under Settings, Discord. Pick Provider to link the track on the
   service it plays from, Sonora to link the project page, or both. Discord shows them to your
   friends only, never to you, and the provider button stays off while Hide details is on.
+- Sonora scrobbles to Last.fm. Connect your account under Settings > General with your own Last.fm
+  API key and secret, and Sonora reports what is playing and scrobbles a track once you are halfway
+  through it. A switch turns scrobbling off without disconnecting the account.
 
 ### Changed
 

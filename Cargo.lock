@@ -4459,6 +4459,7 @@ dependencies = [
  "librespot-protocol",
  "lofty",
  "log",
+ "md-5",
  "oauth2",
  "open",
  "opensubsonic",

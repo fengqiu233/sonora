@@ -183,6 +183,22 @@ impl Default for RomanizationScripts {
     }
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct Lastfm {
+    pub key: String,
+    pub secret: String,
+    pub session: String,
+    pub name: String,
+    pub enabled: bool,
+}
+
+impl Lastfm {
+    fn blank(&self) -> bool {
+        self.key.is_empty() && self.session.is_empty()
+    }
+}
+
 /// A window's saved position and size in logical pixels, plus whether it was maximized.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -300,6 +316,8 @@ struct Values {
     local_folders: Vec<PathBuf>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     hidden_nav: Vec<String>,
+    #[serde(skip_serializing_if = "Lastfm::blank")]
+    lastfm: Lastfm,
     appearance: Appearance,
 }
 
@@ -376,6 +394,7 @@ impl Default for Values {
             local_folder: None,
             local_folders: Vec::new(),
             hidden_nav: Vec::new(),
+            lastfm: Lastfm::default(),
             appearance: Appearance::default(),
         }
     }
@@ -703,6 +722,10 @@ impl AppSettings {
         self.values.close_to_tray
     }
 
+    pub fn lastfm(&self) -> &Lastfm {
+        &self.values.lastfm
+    }
+
     pub fn sidebar_width(&self) -> f32 {
         self.state.sidebar_width
     }
@@ -1018,6 +1041,16 @@ impl AppSettings {
 
     pub fn set_close_to_tray(&mut self, close_to_tray: bool, cx: &mut Context<Self>) {
         self.values.close_to_tray = close_to_tray;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_lastfm(&mut self, lastfm: Lastfm, cx: &mut Context<Self>) {
+        self.values.lastfm = lastfm;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_scrobbling(&mut self, scrobbling: bool, cx: &mut Context<Self>) {
+        self.values.lastfm.enabled = scrobbling;
         self.schedule_save(cx);
     }
 
