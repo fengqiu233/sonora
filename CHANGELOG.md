@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- On Windows, hovering Sonora's taskbar button puts previous, play/pause and next under the
+  thumbnail preview, so a track can be paused or skipped without raising the window. The glyphs
+  follow the icon pack chosen under Settings > Appearance.
 - Buttons on the Discord status, under Settings, Discord. Pick Provider to link the track on the
   service it plays from, Sonora to link the project page, or both. Discord shows them to your
   friends only, never to you, and the provider button stays off while Hide details is on.
