@@ -91,13 +91,19 @@ flatpak install --user https://sonorahq.github.io/sonora/sonora.flatpakref
 
 ### Nix
 
-The flake packages the latest tagged release and exposes `programs.sonora` for Home Manager.
+The flake packages the latest tagged release binary or builds from source if unavailable for your platform.
 
 ```nix
 inputs.sonora.url = "github:sonorahq/sonora";
 ```
 
-Home Manager:
+```text
+inputs.sonora.packages.${system}.default
+inputs.sonora.packages.${system}.sonora (build from source)
+inputs.sonora.packages.${system}.sonora-bin (prebuilt, if available)
+```
+
+You can set configuration options via the included Home Manager module under `programs.sonora`:
 
 ```nix
 {
