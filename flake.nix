@@ -17,15 +17,11 @@
       ...
     }:
     let
-      systems = [
-        "x86_64-linux"
-        "aarch64-linux"
-        "aarch64-darwin"
-      ];
+      inherit (nixpkgs) lib;
 
       forEachSystem =
         fn:
-        nixpkgs.lib.genAttrs systems (
+        lib.genAttrs lib.systems.flakeExposed (
           system:
           let
             pkgs = import nixpkgs {
@@ -102,6 +98,123 @@
             ];
           };
 
+          sonora = pkgs.rustPlatform.buildRustPackage (final: {
+            pname = "sonora";
+            inherit ((lib.importTOML (final.src + /Cargo.toml)).workspace.package) version;
+
+            src = ./.;
+            cargoLock = {
+              lockFile = final.src + /Cargo.lock;
+              allowBuiltinFetchGit = true;
+            };
+
+            nativeBuildInputs =
+              with pkgs;
+              lib.flatten [
+                cmake
+                pkg-config
+                (lib.optionals stdenv.hostPlatform.isLinux [
+                  autoPatchelfHook
+                  mold
+                ])
+                (lib.optionals stdenv.hostPlatform.isDarwin [
+                  (
+                    let
+                      pkgs' = import nixpkgs {
+                        inherit (stdenv.hostPlatform) system;
+                        config.allowUnfree = true;
+                      };
+                    in
+                    runCommandLocal "metal-shader-compiler" { } ''
+                      mkdir -p "$out/bin"
+                      ln -s ${pkgs'.darwin.xcode}/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/metal "$out/bin/metal"
+                      ln -s ${pkgs'.darwin.xcode}/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/metallib "$out/bin/metallib"
+                    ''
+                  )
+                ])
+              ];
+            buildInputs =
+              with pkgs;
+              lib.flatten [
+                sqlite
+                (lib.optionals stdenv.hostPlatform.isLinux [
+                  dbus
+                  fontconfig
+                  libxcb
+                  libxkbcommon
+                  libX11
+                  pipewire
+                  stdenv.cc.cc.lib
+                  (alsa-lib-with-plugins.override {
+                    plugins = [
+                      alsa-plugins
+                      pipewire
+                    ];
+                  })
+                ])
+                (lib.optionals stdenv.hostPlatform.isDarwin [
+                  apple-sdk_15
+                  (darwinMinVersionHook "10.15")
+                ])
+              ];
+            runtimeDependencies =
+              with pkgs;
+              lib.optionals stdenv.hostPlatform.isLinux [
+                vulkan-loader
+                wayland
+              ];
+
+            installPhase = ''
+              runHook preInstall
+
+              install -Dm755 target/release/sonora "$out/bin/sonora"
+              ${
+                if pkgs.stdenv.hostPlatform.isDarwin then
+                  ''
+                    install -Dm755 target/release/sonora "$out/Applications/Sonora.app/Contents/MacOS/sonora"
+                    install -Dm444 "$src/assets/macos/sonora.icns" \
+                      "$out/Applications/Sonora.app/Contents/Resources/sonora.icns"
+
+                    sed \
+                      "s/@VERSION@/$version/g" \
+                      "$src/assets/macos/Info.plist" \
+                      > "$out/Applications/Sonora.app/Contents/Info.plist"
+
+                    LICENSE_DIR="$out/Applications/Sonora.app/Contents/Resources"
+                  ''
+                else
+                  ''
+                    install -Dm444 "$src/assets/linux/sonora.desktop" \
+                      "$out/share/applications/sonora.desktop"
+                    install -Dm444 "$src/assets/linux/sonora.svg" \
+                      "$out/share/icons/hicolor/scalable/apps/sonora.svg"
+                    for icon in "$src"/assets/linux/icons/hicolor/*/apps/sonora.png; do
+                      size="$(basename "$(dirname "$(dirname "$icon")")")"
+                      install -Dm444 "$icon" \
+                        "$out/share/icons/hicolor/$size/apps/sonora.png"
+                    done
+
+                    LICENSE_DIR="$out/share/licenses/sonora"
+                  ''
+              }
+              install -Dm444 "$src/COPYING" "$LICENSE_DIR/LICENSE"
+              install -Dm444 "$src/THIRD-PARTY.md" "$LICENSE_DIR/THIRD-PARTY.md"
+              install -Dm444 "$src/assets/fonts/LICENSE.txt" \
+                "$LICENSE_DIR/sonora/LICENSE.Inter"
+              for licence in "$src/assets/icons"/*/LICENSE; do
+                pack="$(basename "$(dirname "$licence")")"
+                install -Dm444 "$licence" \
+                  "$LICENSE_DIR/icons/LICENSE.$pack"
+              done
+              install -Dm444 "$src/assets/icons/LICENSE" \
+                "$LICENSE_DIR/icons/LICENSE"
+
+              runHook postInstall
+            '';
+
+            inherit (sonora-bin) meta;
+          });
+
           sonora-bin = pkgs.stdenv.mkDerivation {
             pname = "sonora-bin";
             inherit (release) version;
@@ -117,8 +230,8 @@
             dontStrip = true;
 
             nativeBuildInputs =
-              pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.makeWrapper ]
-              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
+              lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.makeWrapper ]
+              ++ lib.optionals pkgs.stdenv.hostPlatform.isDarwin [
                 pkgs.makeBinaryWrapper
                 pkgs.undmg
               ];
@@ -164,10 +277,10 @@
                   runHook postInstall
                 '';
 
-            postFixup = pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
+            postFixup = lib.optionalString pkgs.stdenv.hostPlatform.isLinux ''
               patchelf \
                 --set-interpreter "${pkgs.stdenv.cc.bintools.dynamicLinker}" \
-                --add-rpath "${pkgs.lib.makeLibraryPath (runtimeLibraries ++ [ pkgs.stdenv.cc.cc.lib ])}" \
+                --add-rpath "${lib.makeLibraryPath (runtimeLibraries ++ [ pkgs.stdenv.cc.cc.lib ])}" \
                 "$out/bin/sonora"
               wrapProgram "$out/bin/sonora" \
                 --set ALSA_PLUGIN_DIR ${alsaPluginDirectory} \
@@ -178,17 +291,20 @@
             meta = {
               description = "A native music streaming client, built with Rust and GPUI";
               mainProgram = "sonora";
-              license = with pkgs.lib.licenses; [
+              license = with lib.licenses; [
                 gpl3Plus
                 ofl
                 isc
               ];
-              platforms =
-                if pkgs.stdenv.hostPlatform.isLinux then pkgs.lib.platforms.linux else pkgs.lib.platforms.darwin;
+              platforms = lib.platforms.linux ++ lib.platforms.darwin;
             };
           };
         in
         {
+          inherit sonora;
+          default = sonora;
+        }
+        // lib.optionalAttrs (builtins.hasAttr pkgs.stdenv.hostPlatform.system release.assets) {
           inherit sonora-bin;
           sonora = sonora-bin;
           default = sonora-bin;
@@ -238,11 +354,11 @@
                 rustToolchain
                 sccache
               ])
-              ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.mold ];
+              ++ lib.optionals pkgs.stdenv.hostPlatform.isLinux [ pkgs.mold ];
 
             buildInputs = runtimeLibraries;
 
-            LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath runtimeLibraries;
+            LD_LIBRARY_PATH = lib.makeLibraryPath runtimeLibraries;
 
             ALSA_PLUGIN_DIR =
               if pkgs.stdenv.hostPlatform.isLinux then
@@ -281,7 +397,7 @@
               # gpui_apple compiles its shaders with `xcrun -sdk macosx metal` at build
               # time. The Nix Apple SDK has no Metal toolchain, so hand xcrun back to the
               # installed Xcode; the Nix clang keeps building against SDKROOT regardless.
-              + pkgs.lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
+              + lib.optionalString pkgs.stdenv.hostPlatform.isDarwin ''
                 # xcode-select echoes DEVELOPER_DIR back when it is set, so ask with it unset.
                 if xcode="$(env -u DEVELOPER_DIR /usr/bin/xcode-select -p 2>/dev/null)"; then
                   export DEVELOPER_DIR="$xcode"
