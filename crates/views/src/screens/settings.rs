@@ -447,7 +447,7 @@ impl SettingsView {
                 };
                 this.settings
                     .update(cx, |settings, cx| settings.set_language(*id, cx));
-                window.focus(&this.focus, cx);
+                this.popovers.close();
                 cx.notify();
             },
             cx,
