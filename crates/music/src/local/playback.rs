@@ -358,11 +358,14 @@ fn load(sink: &rodio::Player, id: &str) -> Result<Slot> {
         use std::io::{Seek, SeekFrom};
         let _ = file.seek(SeekFrom::Start(skip));
     }
+    let gapless = !wire::has_lying_xing_frame_count(path, skip);
     let reader = std::io::BufReader::new(file);
 
     let mut builder = rodio::Decoder::builder()
         .with_data(reader)
-        .with_seekable(true);
+        .with_seekable(true)
+        .with_gapless(gapless);
+    
     if let Some(length) = length {
         builder = builder.with_byte_len(length.saturating_sub(skip));
     }
