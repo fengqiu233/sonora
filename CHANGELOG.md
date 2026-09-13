@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- A ten band equalizer under Settings, Playback. Turn it on, pick a preset such as Bass boost or
+  Vocal, or drag the bands yourself; changes are heard as you make them, on every provider and on
+  local files alike.
+
 ## [0.34.4] - 2026-09-12
 
 ### Changed

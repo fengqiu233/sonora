@@ -18,6 +18,7 @@ use gpui::{
     px, size,
 };
 use music::WritingSystem;
+use music::equalizer::{self, Gains};
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use storage::Database;
@@ -266,6 +267,10 @@ struct Values {
     version: u32,
     normalisation: bool,
     gapless: bool,
+    equalizer: bool,
+    /// Per band gains in decibels, lowest band first. Kept even while `equalizer` is off, so
+    /// turning it back on restores the curve.
+    equalizer_bands: Vec<f32>,
     sleep_timer: bool,
     discord_presence: bool,
     discord_name: DiscordName,
@@ -333,6 +338,8 @@ impl Default for Values {
             version: SETTINGS_VERSION,
             normalisation: false,
             gapless: true,
+            equalizer: false,
+            equalizer_bands: vec![0.; equalizer::BANDS],
             sleep_timer: false,
             discord_presence: false,
             discord_name: DiscordName::Sonora,
@@ -566,6 +573,18 @@ impl AppSettings {
 
     pub fn gapless(&self) -> bool {
         self.values.gapless
+    }
+
+    pub fn equalizer(&self) -> bool {
+        self.values.equalizer
+    }
+
+    /// The stored curve, padded flat or cut to the band count and clamped into range, so a file
+    /// written by another version still loads.
+    pub fn equalizer_gains(&self) -> Gains {
+        let stored = &self.values.equalizer_bands;
+        let gains = std::array::from_fn(|band| stored.get(band).copied().unwrap_or(0.));
+        equalizer::clamped(&gains)
     }
 
     pub fn sleep_timer(&self) -> bool {
@@ -830,6 +849,16 @@ impl AppSettings {
 
     pub fn set_gapless(&mut self, gapless: bool, cx: &mut Context<Self>) {
         self.values.gapless = gapless;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_equalizer(&mut self, on: bool, cx: &mut Context<Self>) {
+        self.values.equalizer = on;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_equalizer_gains(&mut self, gains: &Gains, cx: &mut Context<Self>) {
+        self.values.equalizer_bands = equalizer::clamped(gains).to_vec();
         self.schedule_save(cx);
     }
 
