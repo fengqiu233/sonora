@@ -13,6 +13,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   Vocal, or drag the bands yourself; changes are heard as you make them, on every provider and on
   local files alike.
 
+### Fixed
+
+- On Linux under fractional scaling, a window whose size landed on half a device pixel showed a
+  thin strip of compositor blur along its right or bottom edge. Sonora now steps such a size down
+  by one pixel so the edge sits on the pixel grid.
+
 ## [0.34.4] - 2026-09-12
 
 ### Changed
