@@ -205,10 +205,15 @@ impl FullscreenView {
     }
 
     fn hidden(&mut self, window: &mut Window, cx: &App) -> f32 {
-        let target = match self.awake {
-            true => 0.,
-            false => 1.,
+        let target = match self.settings.read(cx).fullscreen_controls_autohide() {
+            state::FullscreenControlsAutohide::Automatic => match self.awake {
+                true => 0.,
+                false => 1.,
+            },
+            state::FullscreenControlsAutohide::AlwaysShown => 0.,
+            state::FullscreenControlsAutohide::AlwaysHidden => 1.,
         };
+
         if cx.reduce_motion() {
             self.hidden = SpringState {
                 position: target,

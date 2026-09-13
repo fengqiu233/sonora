@@ -83,6 +83,44 @@ impl DiscordName {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum FullscreenControlsAutohide {
+    #[default]
+    Automatic,
+    AlwaysShown,
+    AlwaysHidden,
+}
+
+impl FullscreenControlsAutohide {
+    pub const ALL: [Self; 3] = [Self::Automatic, Self::AlwaysShown, Self::AlwaysHidden];
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::Automatic => "automatic",
+            Self::AlwaysHidden => "always-hidden",
+            Self::AlwaysShown => "always-shown",
+        }
+    }
+
+    pub fn from_id(id: &str) -> Self {
+        match id {
+            "automatic" => Self::Automatic,
+            "always-hidden" => Self::AlwaysHidden,
+            "always-shown" => Self::AlwaysShown,
+            _ => Self::Automatic,
+        }
+    }
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Automatic => "settings-fullscreen-controls-autohide-automatic",
+            Self::AlwaysHidden => "settings-fullscreen-controls-autohide-always-hidden",
+            Self::AlwaysShown => "settings-fullscreen-controls-autohide-always-shown",
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum SideTab {
     #[default]
@@ -286,6 +324,7 @@ struct Appearance {
     motion_pace: String,
     battery_saver: String,
     theme_overrides: ThemeOverrides,
+    fullscreen_controls_autohide: String,
 }
 
 impl Default for Values {
@@ -444,6 +483,7 @@ impl Default for Appearance {
             motion_pace: Pace::default().id().to_owned(),
             battery_saver: Saver::default().id().to_owned(),
             theme_overrides: ThemeOverrides::default(),
+            fullscreen_controls_autohide: FullscreenControlsAutohide::Automatic.id().to_owned(),
         }
     }
 }
@@ -665,6 +705,10 @@ impl AppSettings {
         self.values.appearance.visualizer
     }
 
+    pub fn fullscreen_controls_autohide(&self) -> FullscreenControlsAutohide {
+        FullscreenControlsAutohide::from_id(&self.values.appearance.fullscreen_controls_autohide)
+    }
+
     pub fn icons(&self) -> &str {
         &self.values.appearance.icons
     }
@@ -801,6 +845,15 @@ impl AppSettings {
 
     pub fn set_discord_name(&mut self, name: DiscordName, cx: &mut Context<Self>) {
         self.values.discord_name = name;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_fullscreen_controls_autohide(
+        &mut self,
+        fca: FullscreenControlsAutohide,
+        cx: &mut Context<Self>,
+    ) {
+        self.values.appearance.fullscreen_controls_autohide = fca.id().to_owned();
         self.schedule_save(cx);
     }
 

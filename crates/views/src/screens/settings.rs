@@ -15,8 +15,8 @@ use i18n::{Language, t};
 use music::{AccountChoice, SignIn, SignInPrompt, WritingSystem};
 use router::{NavEntry, Screen, SettingsTab};
 use state::{
-    AppSettings, DiscordName, Failure, Io, Playback, SYSTEM_FONT, Session, SessionState, Sleep,
-    Sonora,
+    AppSettings, DiscordName, Failure, FullscreenControlsAutohide, Io, Playback, SYSTEM_FONT,
+    Session, SessionState, Sleep, Sonora,
 };
 use ui::{ActiveTheme as _, Scrollbar, Scroller, eyebrow};
 use ui::{
@@ -34,6 +34,7 @@ const PACKS: &str = "packs";
 const CORNERS: &str = "corners";
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "freebsd"))]
 const WINDOW_ROUNDING: &str = "window-rounding";
+const FULLSCREEN_CONTROLS_AUTOHIDE: &str = "fullscreen-controls-autohide";
 const LANGUAGES: &str = "languages";
 const TYPEFACES: &str = "typefaces";
 const TYPEFACE_LIMIT: usize = 200;
@@ -236,6 +237,7 @@ impl SettingsView {
                 Row::Item(self.opacity_row(cx).into_any_element()),
                 Row::Item(self.blur_row(cx).into_any_element()),
                 Row::Item(self.corners_row(cx).into_any_element()),
+                Row::Item(self.fullscreen_controls_autohide_row(cx).into_any_element()),
                 self.title("settings-group-lyrics", cx),
                 Row::Item(self.panel_lyrics_size_row(cx).into_any_element()),
                 Row::Item(self.fullscreen_lyrics_size_row(cx).into_any_element()),
@@ -1103,6 +1105,38 @@ impl SettingsView {
                         .update(cx, |settings, cx| settings.set_visualizer(!on, cx));
                 }))
                 .into_any_element(),
+        )
+    }
+
+    fn fullscreen_controls_autohide_row(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = *cx.theme();
+        let muted = theme.muted_foreground;
+        let small = theme.text(Text::Small);
+        let chosen = self.settings.read(cx).fullscreen_controls_autohide();
+
+        let picker = Picker::new(
+            FULLSCREEN_CONTROLS_AUTOHIDE,
+            &self.popovers,
+            i18n::lookup(chosen.key(), None),
+        )
+        .width(Picker::NARROW)
+        .items(FullscreenControlsAutohide::ALL.map(|fca| {
+            MenuItem::new(fca.id(), i18n::lookup(fca.key(), None))
+                .selected(fca == chosen)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings.update(cx, |settings, cx| {
+                        settings.set_fullscreen_controls_autohide(fca, cx)
+                    });
+                    cx.notify();
+                }))
+        }));
+
+        self.row(
+            t!("settings-fullscreen-controls-autohide"),
+            t!("settings-fullscreen-controls-autohide-detail"),
+            muted,
+            small,
+            picker.into_any_element(),
         )
     }
 
