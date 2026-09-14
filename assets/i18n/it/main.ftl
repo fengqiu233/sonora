@@ -41,10 +41,14 @@ library-play-liked-songs = Riproduci
 library-no-songs = Ancora nessun preferito
 library-no-albums = Ancora nessun album salvato
 library-no-playlists = Ancora nessuna playlist
+library-no-artists = Ancora nessun artista preferito
 library-no-local-songs = Nessun brano importato trovato
 library-no-local-albums = Nessun album importato trovato
 library-no-local-artists = Nessun artista importato trovato
 library-no-local-playlists = Ancora nessuna playlist locale
+library-no-catalog-songs = Nessun brano trovato
+library-no-catalog-albums = Nessun album trovato
+library-no-catalog-artists = Nessun artista trovato
 library-no-matches = Nessun risultato
 library-not-loaded = La tua libreria non è stata caricata
 library-part-not-loaded = Questa parte della tua libreria non è stata caricata
@@ -68,6 +72,11 @@ app-close-window = Chiudi finestra
 app-minimize = Contrai
 app-zoom = Zoom
 
+# tray menu
+tray-show = Mostra Sonora
+tray-play = Riproduci
+tray-pause = Pausa
+
 # table columns
 column-played-at = Riprodotto
 column-index = #
@@ -86,20 +95,52 @@ column-tracks = Brani
 
 # track menu
 menu-add-to-playlist = Aggiungi alla playlist
+menu-add-tracks-to-playlist = { $count ->
+    [one] Aggiungi { $count } brano alla playlist
+   *[other] Aggiungi { $count } brani alla playlist
+}
 menu-new-playlist = Nuova playlist
 menu-edit-tags = Modifica tag
 menu-no-playlists = Nessuna playlist
 menu-add-to-library = Aggiungi ai Preferiti
+menu-add-tracks-to-library = { $count ->
+    [one] Aggiungi { $count } brano ai Preferiti
+   *[other] Aggiungi { $count } brani ai Preferiti
+}
 menu-remove-from-library = Rimuovi dai Preferiti
+menu-remove-tracks-from-library = { $count ->
+    [one] Rimuovi { $count } brano dai Preferiti
+   *[other] Rimuovi { $count } brani dai Preferiti
+}
 menu-remove-from-playlist = Rimuovi dalla playlist
+menu-remove-tracks-from-playlist = { $count ->
+    [one] Rimuovi { $count } brano dalla playlist
+   *[other] Rimuovi { $count } brani dalla playlist
+}
 menu-remove-from-history = Rimuovi dalla cronologia
+menu-remove-tracks-from-history = { $count ->
+    [one] Rimuovi { $count } brano dalla cronologia
+   *[other] Rimuovi { $count } brani dalla cronologia
+}
 menu-play-next = Riproduci per prossimo
+menu-play-tracks-next = { $count ->
+    [one] Riproduci { $count } brano per prossimo
+   *[other] Riproduci { $count } brani per prossimi
+}
 menu-add-to-queue = Aggiungi alla coda
+menu-add-tracks-to-queue = { $count ->
+    [one] Aggiungi { $count } brano alla coda
+   *[other] Aggiungi { $count } brani alla coda
+}
 menu-song-radio = Vai alla radio del brano
 menu-go-to-album = Vai all'album
 menu-go-to-artist = Vai all'artista
 menu-view-details = Mostra dettagli
 menu-copy-link = Copia link
+menu-cut = Taglia
+menu-copy = Copia
+menu-paste = Incolla
+menu-select-all = Seleziona tutto
 menu-remove-from-queue = Rimuovi dalla coda
 menu-open-playlist = Apri playlist
 menu-play-playlist = Riproduci playlist
@@ -123,6 +164,35 @@ playlist-again-title = Aggiungere di nuovo?
 playlist-again-confirm = Questo brano è già in “{ $name }”. Aggiungere un'altra copia?
 playlist-again-add = Aggiungi di nuovo
 
+# confirm
+confirm-remove-library-title = Rimuovi dalla libreria
+confirm-remove-playlist-title = Rimuovi dalla playlist
+confirm-remove-history-title = Rimuovi dalla cronologia
+confirm-remove-songs = { $count ->
+    [one] Rimuovere questo brano dalla tua libreria?
+   *[other] Rimuovere { $count } brani dalla tua libreria?
+}
+confirm-remove-playlist-songs = { $count ->
+    [one] Rimuovere questo brano dalla playlist?
+   *[other] Rimuovere { $count } brani dalla playlist?
+}
+confirm-remove-history-songs = { $count ->
+    [one] Rimuovere questo brano dalla cronologia di ascolto?
+   *[other] Rimuovere { $count } brani dalla cronologia di ascolto?
+}
+confirm-remove-albums = { $count ->
+    [one] Rimuovere questo album dalla tua libreria?
+   *[other] Rimuovere { $count } album dalla tua libreria?
+}
+confirm-remove-artists = { $count ->
+    [one] Rimuovere questo artista dai Preferiti?
+   *[other] Rimuovere { $count } artisti dai Preferiti?
+}
+confirm-remove-playlists = { $count ->
+    [one] Rimuovere questa playlist dalla tua libreria?
+   *[other] Rimuovere { $count } playlist dalla tua libreria?
+}
+
 # queue panel
 queue-title = Coda
 queue-history = Cronologia
@@ -134,6 +204,7 @@ queue-clear = Svuota
 queue-empty = La tua coda è vuota
 queue-similar = Brani simili
 queue-radio = Riproduci automaticamente brani simili
+queue-return-playing = Torna alla riproduzione
 
 # player bar
 player-nothing-playing = Nulla in riproduzione
@@ -164,6 +235,8 @@ filter-duration = Durata
 filter-year = Anno
 filter-explicit = Solo espliciti
 filter-playable = Solo riproducibili
+filter-favorites = Solo preferiti
+filter-owned = Tuoi
 
 # view
 view-list = Elenco
@@ -376,6 +449,8 @@ month-12 = dic
 settings-tab-general = Generale
 settings-tab-appearance = Aspetto
 settings-tab-playback = Riproduzione
+settings-tab-privacy = Privacy
+settings-tab-integrations = Integrazioni
 settings-theme = Tema
 settings-theme-detail = Scegli la palette di colori dell'applicazione
 settings-opacity = Opacità
@@ -384,6 +459,10 @@ settings-opacity-value = { $percent }%
 settings-theme-config = Apri configurazione
 settings-adaptive = Tema adattivo
 settings-adaptive-detail = Colora la palette con la copertina dell'album in riproduzione
+settings-visualizer = Visualizzatore
+settings-visualizer-detail = Mostra le barre dello spettro dietro la copertina a schermo intero
+settings-fullscreen-controls-autohide = Nascondi controlli a schermo intero
+settings-fullscreen-controls-autohide-detail = Dissolvi i controlli di riproduzione quando lo schermo intero è inattivo
 settings-icons = Pacchetto icone
 settings-icons-detail = Scegli il set di icone disegnato dall'interfaccia
 settings-motion = Riduci animazioni
@@ -394,6 +473,8 @@ settings-saver = Risparmio energetico
 settings-saver-detail = Limita il frame rate delle animazioni quando Sonora non è in primo piano, dal prossimo avvio
 settings-corners = Angoli
 settings-corners-detail = Quanto sono arrotondati superfici e controlli
+settings-blur = Sfocatura
+settings-blur-detail = Disegna la finestra sopra una scrivania sfocata. Richiede un'opacità inferiore al 100%
 settings-font = Dimensione carattere
 settings-font-detail = Dimensione base del testo, tutto il resto scala di conseguenza
 settings-font-value = { $size } px
@@ -412,6 +493,8 @@ settings-typeface-detail = Il carattere tipografico usato da Sonora nell'interfa
 settings-typeface-system = Predefinito
 settings-typeface-search = Cerca un carattere
 settings-typeface-none = Nessun carattere trovato
+settings-server-side-decorations = Decorazioni lato server
+settings-server-side-decorations-detail = Lascia che sia il compositor a disegnare barra del titolo, bordo e ombra
 settings-typeface-loading = Caricamento…
 settings-window-controls = Controlli finestra
 settings-window-controls-detail = Disegna riduci a icona, ingrandisci e chiudi nella barra del titolo
@@ -421,12 +504,74 @@ settings-window-rounding = Angoli della finestra
 settings-window-rounding-detail = Quanto sono arrotondati gli angoli della finestra
 settings-controls-side = Lato controlli
 settings-controls-side-detail = Su quale lato della barra del titolo si trovano i controlli
+settings-close-to-tray = Continua a riprodurre alla chiusura
+settings-close-to-tray-detail = Mantieni Sonora nell'area di notifica e continua la riproduzione dopo la chiusura della finestra
+settings-discord = Mostra su Discord
+settings-discord-detail = Mostra il brano che stai ascoltando sul tuo profilo Discord
+settings-discord-name = Nome dello stato
+settings-discord-name-detail = Come si chiama lo stato, dopo l'«Sta ascoltando» che vedono i tuoi amici
+settings-discord-name-sonora = Sonora
+settings-discord-name-provider = Servizio
+settings-discord-name-music = Musica
+settings-discord-name-title = Titolo
+settings-discord-name-artist = Artista
+settings-discord-name-artist-title = Artista - Titolo
+settings-discord-show-paused = Mostra in pausa
+settings-discord-show-paused-detail = Mantieni lo stato sul tuo profilo Discord mentre il brano è in pausa
+settings-discord-badge = Mostra il badge del servizio
+settings-discord-badge-detail = Contrassegna lo stato con una piccola icona del servizio da cui proviene il brano
+settings-discord-anonymous = Nascondi dettagli
+settings-discord-anonymous-detail = Indica solo che è in corso della musica, senza titolo, artista o copertina
+settings-discord-buttons = Pulsanti
+settings-discord-buttons-detail = Link sotto lo stato che i tuoi amici possono aprire, uno al brano sul suo servizio e uno a Sonora
+settings-discord-buttons-pick = Scegli pulsanti
+# the Discord status when the track is left out of it
+discord-listening = Sta ascoltando musica
+get-sonora = Scarica Sonora
+settings-fullscreen-controls-autohide-automatic = Automatico
+settings-fullscreen-controls-autohide-always-hidden = Sempre nascosti
+settings-fullscreen-controls-autohide-always-shown = Sempre visibili
 settings-normalisation = Normalizza volume
 settings-normalisation-detail = Mantiene le tracce a un volume uniforme
 settings-gapless = Riproduzione senza pause
 settings-gapless-detail = Fa scorrere un brano nell'altro senza pausa, come è stato sequenziato l'album
+settings-sleep = Timer di spegnimento
+settings-sleep-detail = Lascia che la musica si fermi da sola dopo un tempo stabilito, per accompagnarti al sonno
+settings-sleep-configure = Configura…
+settings-sleep-off = Disattivato
+settings-sleep-end-of-track = Fine del brano
+settings-sleep-minutes = { $count } min
+settings-equalizer = Equalizzatore
+settings-equalizer-detail = Modella il suono su dieci bande, una per ottava
+settings-equalizer-preset = Preimpostazione
+settings-equalizer-preset-detail = Una curva pronta all'uso per le bande qui sotto
+settings-equalizer-custom = Personalizzata
+settings-equalizer-flat = Neutra
+settings-equalizer-bass-boost = Bassi esaltati
+settings-equalizer-bass-reducer = Bassi ridotti
+settings-equalizer-treble-boost = Alti esaltati
+settings-equalizer-vocal = Voce
+settings-equalizer-rock = Rock
+settings-equalizer-pop = Pop
+settings-equalizer-jazz = Jazz
+settings-equalizer-classical = Classica
+settings-equalizer-electronic = Elettronica
+settings-equalizer-acoustic = Acustica
+settings-equalizer-loudness = Loudness
+settings-equalizer-decibels = { $db } dB
+settings-equalizer-hertz = { $hz } Hz
+settings-equalizer-kilohertz = { $khz } kHz
+settings-panel-lyrics-size = Dimensione testi (pannello)
+settings-panel-lyrics-size-detail = Dimensione del testo nel pannello laterale, oltre alla dimensione base del carattere
+settings-fullscreen-lyrics-size = Dimensione testi (schermo intero)
+settings-fullscreen-lyrics-size-detail = Dimensione del testo nel lettore a schermo intero, oltre alla dimensione base del carattere
+settings-lyrics-size-value = { $size }%
+settings-lyrics-for-local-files = Testi per i file locali
+settings-lyrics-for-local-files-detail = Usa i metadati dei file locali per cercare i testi su internet
 settings-karaoke-lyrics = Testo karaoke
 settings-karaoke-lyrics-detail = Evidenzia il testo parola per parola quando la sincronizzazione è disponibile
+settings-blur-lyrics = Sfoca i testi inattivi
+settings-blur-lyrics-detail = Sfoca le righe successive e precedenti nel pannello dei testi
 settings-romanized-lyrics = Testo romanizzato
 settings-romanized-lyrics-detail = Mostra la pronuncia generata localmente per i sistemi di scrittura selezionati
 settings-romanization-writing-systems = Sistemi di scrittura
@@ -438,12 +583,16 @@ settings-romanization-greek = Greco
 settings-romanization-arabic = Arabo
 settings-romanization-other = Altri sistemi di scrittura
 settings-advanced = Avanzate
+settings-group-window = Finestra
 settings-group-accounts = Account
 settings-group-library = Libreria
 settings-group-text = Testo
 settings-group-motion = Movimento
 settings-group-title-bar = Barra del titolo
+settings-group-window-style = Stile finestra
 settings-group-lyrics = Testi
+settings-group-equalizer = Equalizzatore
+settings-group-discord = Discord
 settings-group-project = Progetto
 settings-adaptive-menu = Menu contestuale adattivo
 settings-adaptive-menu-detail = Omette le voci che la riga mostra già, come l'album o l'artista
@@ -458,6 +607,8 @@ settings-sign-out = Disconnetti
 settings-local-folder = Cartella musica importata
 settings-local-folder-empty = Non configurata
 settings-choose-folder = Scegli cartella…
+settings-add-folder = Aggiungi cartella
+settings-remove-folder = Rimuovi cartella
 settings-rescan = Riscansiona
 settings-tab-about = Informazioni
 settings-version = Versione
@@ -571,3 +722,11 @@ tags-isrc = ISRC
 tags-comment = Commento
 toast-tags-saved = Tag salvati per { $name }
 toast-tags-failed = Impossibile salvare i tag
+nav-pin = Fissa
+toast-library-pin-limit = Il limite di elementi fissati di Spotify è stato raggiunto. Rimuovine prima un altro.
+toast-library-pin-failed = Impossibile aggiornare l'elemento fissato su Spotify.
+nav-nothing-pinned = Niente qui
+nav-pins-alphabetical = Alfabetico
+nav-pins-kind = Per tipo
+nav-show-full-library = Mostra tutta la libreria
+nav-return-top = Torna in alto

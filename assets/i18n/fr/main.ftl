@@ -41,10 +41,14 @@ library-play-liked-songs = Lire
 library-no-songs = Aucun favori pour l’instant
 library-no-albums = Aucun album enregistré pour l'instant
 library-no-playlists = Aucune playlist pour l'instant
+library-no-artists = Aucun artiste favori pour l'instant
 library-no-local-songs = Aucun titre importé trouvé
 library-no-local-albums = Aucun album importé trouvé
 library-no-local-artists = Aucun artiste importé
 library-no-local-playlists = Aucune playlist locale
+library-no-catalog-songs = Aucun titre trouvé
+library-no-catalog-albums = Aucun album trouvé
+library-no-catalog-artists = Aucun artiste trouvé
 library-no-matches = Aucun résultat
 library-not-loaded = Votre bibliothèque ne s’est pas chargée
 library-part-not-loaded = Cette partie de votre bibliothèque ne s’est pas chargée
@@ -68,6 +72,11 @@ app-close-window = Fermer la fenêtre
 app-minimize = Placer dans le Dock
 app-zoom = Réduire/agrandir
 
+# tray menu
+tray-show = Afficher Sonora
+tray-play = Lire
+tray-pause = Pause
+
 # table columns
 column-played-at = Écouté
 column-index = #
@@ -86,20 +95,52 @@ column-tracks = Titres
 
 # track menu
 menu-add-to-playlist = Ajouter à une playlist
+menu-add-tracks-to-playlist = { $count ->
+    [one] Ajouter { $count } titre à une playlist
+   *[other] Ajouter { $count } titres à une playlist
+}
 menu-new-playlist = Nouvelle playlist
 menu-edit-tags = Modifier les tags
 menu-no-playlists = Aucune playlist
 menu-add-to-library = Ajouter aux favoris
+menu-add-tracks-to-library = { $count ->
+    [one] Ajouter { $count } titre aux favoris
+   *[other] Ajouter { $count } titres aux favoris
+}
 menu-remove-from-library = Retirer des favoris
+menu-remove-tracks-from-library = { $count ->
+    [one] Retirer { $count } titre des favoris
+   *[other] Retirer { $count } titres des favoris
+}
 menu-remove-from-playlist = Retirer de la playlist
+menu-remove-tracks-from-playlist = { $count ->
+    [one] Retirer { $count } titre de la playlist
+   *[other] Retirer { $count } titres de la playlist
+}
 menu-remove-from-history = Retirer de l’historique
+menu-remove-tracks-from-history = { $count ->
+    [one] Retirer { $count } titre de l'historique
+   *[other] Retirer { $count } titres de l'historique
+}
 menu-play-next = Lire juste après
+menu-play-tracks-next = { $count ->
+    [one] Lire { $count } titre juste après
+   *[other] Lire { $count } titres juste après
+}
 menu-add-to-queue = Ajouter à la file d'attente
+menu-add-tracks-to-queue = { $count ->
+    [one] Ajouter { $count } titre à la file d'attente
+   *[other] Ajouter { $count } titres à la file d'attente
+}
 menu-song-radio = Ouvrir la radio du titre
 menu-go-to-album = Aller à l'album
 menu-go-to-artist = Aller à l'artiste
 menu-view-details = Voir les détails
 menu-copy-link = Copier le lien
+menu-cut = Couper
+menu-copy = Copier
+menu-paste = Coller
+menu-select-all = Tout sélectionner
 menu-remove-from-queue = Retirer de la file d'attente
 menu-open-playlist = Ouvrir la playlist
 menu-play-playlist = Lire la playlist
@@ -123,6 +164,35 @@ playlist-again-title = L'ajouter encore ?
 playlist-again-confirm = Ce titre est déjà dans « { $name } ». En ajouter une copie ?
 playlist-again-add = Ajouter quand même
 
+# confirm
+confirm-remove-library-title = Retirer de la bibliothèque
+confirm-remove-playlist-title = Retirer de la playlist
+confirm-remove-history-title = Retirer de l'historique
+confirm-remove-songs = { $count ->
+    [one] Retirer ce titre de votre bibliothèque ?
+   *[other] Retirer { $count } titres de votre bibliothèque ?
+}
+confirm-remove-playlist-songs = { $count ->
+    [one] Retirer ce titre de la playlist ?
+   *[other] Retirer { $count } titres de la playlist ?
+}
+confirm-remove-history-songs = { $count ->
+    [one] Retirer ce titre de l'historique d'écoute ?
+   *[other] Retirer { $count } titres de l'historique d'écoute ?
+}
+confirm-remove-albums = { $count ->
+    [one] Retirer cet album de votre bibliothèque ?
+   *[other] Retirer { $count } albums de votre bibliothèque ?
+}
+confirm-remove-artists = { $count ->
+    [one] Retirer cet artiste des favoris ?
+   *[other] Retirer { $count } artistes des favoris ?
+}
+confirm-remove-playlists = { $count ->
+    [one] Retirer cette playlist de votre bibliothèque ?
+   *[other] Retirer { $count } playlists de votre bibliothèque ?
+}
+
 # queue panel
 queue-title = File d'attente
 queue-history = Historique
@@ -134,6 +204,7 @@ queue-clear = Vider
 queue-empty = Votre file d'attente est vide
 queue-similar = Titres similaires
 queue-radio = Lire automatiquement des titres similaires
+queue-return-playing = Revenir à la lecture en cours
 
 # player bar
 player-nothing-playing = Aucune lecture en cours
@@ -164,6 +235,8 @@ filter-duration = Durée
 filter-year = Année
 filter-explicit = Explicites uniquement
 filter-playable = Lisibles uniquement
+filter-favorites = Favoris uniquement
+filter-owned = Par vous
 
 # view
 view-list = Liste
@@ -376,6 +449,8 @@ month-12 = déc.
 settings-tab-general = Général
 settings-tab-appearance = Apparence
 settings-tab-playback = Lecture
+settings-tab-privacy = Confidentialité
+settings-tab-integrations = Intégrations
 settings-theme = Thème
 settings-theme-detail = Choisissez la palette de couleurs de l'application
 settings-opacity = Opacité
@@ -384,6 +459,10 @@ settings-opacity-value = { $percent } %
 settings-theme-config = Ouvrir la configuration
 settings-adaptive = Thème adaptatif
 settings-adaptive-detail = Teinte la palette avec la pochette de l'album en cours
+settings-visualizer = Visualiseur
+settings-visualizer-detail = Afficher des barres de spectre derrière la pochette en plein écran
+settings-fullscreen-controls-autohide = Masquer les contrôles en plein écran
+settings-fullscreen-controls-autohide-detail = Estomper les contrôles de lecture quand le plein écran est inactif
 settings-icons = Jeu d'icônes
 settings-icons-detail = Choisissez le jeu d'icônes utilisé dans l'interface
 settings-motion = Réduire les animations
@@ -394,6 +473,8 @@ settings-saver = Économie d'énergie
 settings-saver-detail = Limiter la fréquence d'images des animations quand Sonora n'est pas au premier plan, à partir du prochain démarrage
 settings-corners = Coins
 settings-corners-detail = Le degré d'arrondi des surfaces et des contrôles
+settings-blur = Flou
+settings-blur-detail = Dessiner la fenêtre par-dessus un bureau flouté. Nécessite une opacité inférieure à 100 %
 settings-font = Taille du texte
 settings-font-detail = Taille de base du texte, tout le reste s'y adapte
 settings-font-value = { $size } px
@@ -423,12 +504,74 @@ settings-window-rounding = Angles de la fenêtre
 settings-window-rounding-detail = À quel point les coins de la fenêtre sont arrondis
 settings-controls-side = Côté des contrôles
 settings-controls-side-detail = L'extrémité de la barre de titre où se placent les contrôles
+settings-close-to-tray = Continuer la lecture à la fermeture
+settings-close-to-tray-detail = Garder Sonora dans la zone de notification et poursuivre la lecture après la fermeture de sa fenêtre
+settings-discord = Afficher sur Discord
+settings-discord-detail = Afficher le titre que vous écoutez sur votre profil Discord
+settings-discord-name = Nom du statut
+settings-discord-name-detail = Le nom du statut, après le « Écoute » que vos amis voient
+settings-discord-name-sonora = Sonora
+settings-discord-name-provider = Service
+settings-discord-name-music = Musique
+settings-discord-name-title = Titre
+settings-discord-name-artist = Artiste
+settings-discord-name-artist-title = Artiste - Titre
+settings-discord-show-paused = Afficher en pause
+settings-discord-show-paused-detail = Garder le statut sur votre profil Discord pendant que le titre est en pause
+settings-discord-badge = Afficher le badge du service
+settings-discord-badge-detail = Marquer le statut d'une petite icône du service d'où vient le titre
+settings-discord-anonymous = Masquer les détails
+settings-discord-anonymous-detail = Indiquer seulement que de la musique est en cours, sans le titre, l'artiste ni la pochette
+settings-discord-buttons = Boutons
+settings-discord-buttons-detail = Des liens sous le statut que vos amis peuvent ouvrir, l'un vers le titre sur son service et l'autre vers Sonora
+settings-discord-buttons-pick = Choisir les boutons
+# the Discord status when the track is left out of it
+discord-listening = Écoute de la musique
+get-sonora = Obtenir Sonora
+settings-fullscreen-controls-autohide-automatic = Automatique
+settings-fullscreen-controls-autohide-always-hidden = Toujours masqués
+settings-fullscreen-controls-autohide-always-shown = Toujours affichés
 settings-normalisation = Normaliser le volume
 settings-normalisation-detail = Maintient un volume constant entre les titres
 settings-gapless = Lecture sans blanc
 settings-gapless-detail = Enchaîne un titre au suivant sans pause, comme l'album a été conçu
+settings-sleep = Minuteur de veille
+settings-sleep-detail = Laisse la musique s'arrêter d'elle-même après un délai, pour vous endormir en musique
+settings-sleep-configure = Configurer…
+settings-sleep-off = Désactivé
+settings-sleep-end-of-track = Fin du titre
+settings-sleep-minutes = { $count } min
+settings-equalizer = Égaliseur
+settings-equalizer-detail = Façonne le son sur dix bandes, une par octave
+settings-equalizer-preset = Préréglage
+settings-equalizer-preset-detail = Une courbe toute prête pour les bandes ci-dessous
+settings-equalizer-custom = Personnalisé
+settings-equalizer-flat = Neutre
+settings-equalizer-bass-boost = Graves renforcés
+settings-equalizer-bass-reducer = Graves atténués
+settings-equalizer-treble-boost = Aigus renforcés
+settings-equalizer-vocal = Voix
+settings-equalizer-rock = Rock
+settings-equalizer-pop = Pop
+settings-equalizer-jazz = Jazz
+settings-equalizer-classical = Classique
+settings-equalizer-electronic = Électronique
+settings-equalizer-acoustic = Acoustique
+settings-equalizer-loudness = Loudness
+settings-equalizer-decibels = { $db } dB
+settings-equalizer-hertz = { $hz } Hz
+settings-equalizer-kilohertz = { $khz } kHz
+settings-panel-lyrics-size = Taille des paroles (panneau)
+settings-panel-lyrics-size-detail = Taille du texte des paroles dans le panneau latéral, en plus de la taille de base
+settings-fullscreen-lyrics-size = Taille des paroles (plein écran)
+settings-fullscreen-lyrics-size-detail = Taille du texte des paroles sur le lecteur plein écran, en plus de la taille de base
+settings-lyrics-size-value = { $size } %
+settings-lyrics-for-local-files = Paroles des fichiers locaux
+settings-lyrics-for-local-files-detail = Utiliser les métadonnées des fichiers locaux pour chercher les paroles sur internet
 settings-karaoke-lyrics = Paroles karaoké
 settings-karaoke-lyrics-detail = Mettre les paroles en évidence mot à mot quand la synchronisation est disponible
+settings-blur-lyrics = Flouter les paroles inactives
+settings-blur-lyrics-detail = Flouter les lignes suivantes et précédentes dans le panneau des paroles
 settings-romanized-lyrics = Paroles romanisées
 settings-romanized-lyrics-detail = Afficher une prononciation générée localement pour les systèmes d'écriture choisis
 settings-romanization-writing-systems = Systèmes d'écriture
@@ -440,6 +583,7 @@ settings-romanization-greek = Écriture grecque
 settings-romanization-arabic = Écriture arabe
 settings-romanization-other = Autres systèmes d'écriture
 settings-advanced = Avancé
+settings-group-window = Fenêtre
 settings-group-accounts = Comptes
 settings-group-library = Bibliothèque
 settings-group-text = Texte
@@ -447,6 +591,8 @@ settings-group-motion = Animations
 settings-group-title-bar = Barre de titre
 settings-group-window-style = Style de fenêtre
 settings-group-lyrics = Paroles
+settings-group-equalizer = Égaliseur
+settings-group-discord = Discord
 settings-group-project = Projet
 settings-adaptive-menu = Menu contextuel adaptatif
 settings-adaptive-menu-detail = Omet les entrées que la ligne montre déjà, comme l'album ou l'artiste
@@ -461,6 +607,8 @@ settings-sign-out = Se déconnecter
 settings-local-folder = Dossier de musique importée
 settings-local-folder-empty = Non configuré
 settings-choose-folder = Choisir un dossier…
+settings-add-folder = Ajouter un dossier
+settings-remove-folder = Retirer le dossier
 settings-rescan = Réanalyser
 settings-tab-about = À propos
 settings-version = Version
@@ -574,3 +722,11 @@ tags-isrc = ISRC
 tags-comment = Commentaire
 toast-tags-saved = Tags de { $name } enregistrés
 toast-tags-failed = Les tags n’ont pas pu être enregistrés
+nav-pin = Épingler
+toast-library-pin-limit = La limite d'épingles de Spotify est atteinte. Détachez d'abord un autre élément.
+toast-library-pin-failed = Impossible de mettre à jour l'épingle dans Spotify.
+nav-nothing-pinned = Rien ici
+nav-pins-alphabetical = Alphabétique
+nav-pins-kind = Par type
+nav-show-full-library = Afficher toute la bibliothèque
+nav-return-top = Revenir en haut

@@ -13,6 +13,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   service it plays from, Sonora to link the project page, or both. Discord shows them to your
   friends only, never to you, and the provider button stays off while Hide details is on.
 
+### Changed
+
+- Every language Sonora ships is translated in full. German, Spanish, French, Italian, Indonesian,
+  Japanese, Russian, Ukrainian, Polish, Brazilian Portuguese, Chinese and Turkish no longer fall
+  back to English for the equalizer, the sleep timer, the Discord status, pinned items or the
+  fullscreen controls.
+
 ### Fixed
 
 - On Linux with an NVIDIA GPU, clicking Sign in on YouTube Music under Wayland closed Sonora with
