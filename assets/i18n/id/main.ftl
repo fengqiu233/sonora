@@ -519,7 +519,6 @@ settings-discord-badge = Tampilkan lencana layanan
 settings-discord-badge-detail = Tandai status dengan ikon kecil dari layanan musik sumber lagu
 settings-discord-anonymous = Sembunyikan detail
 settings-discord-anonymous-detail = Hanya tampilkan bahwa musik sedang diputar, tanpa judul, artis, atau sampul
-discord-listening = Mendengarkan musik
 settings-normalisation = Normalisasi volume
 settings-normalisation-detail = Menjaga volume suara trek tetap konsisten
 settings-gapless = Pemutaran tanpa jeda (Gapless)

@@ -542,7 +542,6 @@ settings-discord-anonymous-detail = Повідомляє лише те, що г�
 settings-discord-buttons = Кнопки
 settings-discord-buttons-detail = Посилання під статусом, які можуть відкрити друзі: на трек у його сервісі й на Sonora
 settings-discord-buttons-pick = Обрати кнопки
-discord-listening = Слухає музику
 # the Discord status when the track is left out of it
 settings-normalisation = Нормалізація гучності
 settings-normalisation-detail = Тримає треки на однаковій гучності

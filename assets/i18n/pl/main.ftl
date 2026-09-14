@@ -544,7 +544,6 @@ settings-discord-anonymous-detail = Informuje tylko, że muzyka gra, bez tytułu
 settings-discord-buttons = Przyciski
 settings-discord-buttons-detail = Odnośniki pod statusem, które znajomi mogą otworzyć: do utworu w jego serwisie i do Sonory
 settings-discord-buttons-pick = Wybierz przyciski
-discord-listening = Słucha muzyki
 # the Discord status when the track is left out of it
 settings-normalisation = Normalizacja głośności
 settings-normalisation-detail = Utrzymuje stałą głośność utworów

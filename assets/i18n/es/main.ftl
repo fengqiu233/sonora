@@ -513,7 +513,6 @@ settings-discord-badge = Mostrar la insignia del proveedor
 settings-discord-badge-detail = Marca el estado con un icono pequeño del servicio del que viene la pista
 settings-discord-anonymous = Ocultar los detalles
 settings-discord-anonymous-detail = Dice solo que suena música, sin el título, el artista ni la portada
-discord-listening = Escuchando música
 settings-normalisation = Normalizar el volumen
 settings-normalisation-detail = Mantiene las pistas a un volumen constante
 settings-gapless = Reproducción sin pausas

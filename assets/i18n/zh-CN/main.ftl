@@ -520,7 +520,6 @@ settings-discord-badge-detail = 用歌曲来源服务的小图标标记状态
 settings-discord-anonymous = 隐藏详细信息
 settings-discord-anonymous-detail = 仅显示正在播放音乐，不显示标题、歌手或封面
 # the Discord status when the track is left out of it
-discord-listening = 正在收听音乐
 settings-normalisation = 系统音量
 settings-normalisation-detail = 保持歌曲音量一致
 settings-gapless = 无缝播放
