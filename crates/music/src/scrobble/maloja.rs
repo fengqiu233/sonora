@@ -1,14 +1,14 @@
-use std::sync::Arc;
-
 use anyhow::{Context as _, Result, bail};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use super::{Account, Link, Play, Scrobbler, Secret, Service};
+use super::{Account, Link, Play, Secret, Service};
 
 /// Where the native API lives under a Maloja server's root.
 const API: &str = "/apis/mlj_1";
 
+/// Maloja has no now-playing concept, so it keeps the default and only submits finished listens,
+/// one request each.
 pub struct Maloja;
 
 #[async_trait]
@@ -30,8 +30,7 @@ impl Service for Maloja {
             bail!("maloja needs a server url and an api key");
         }
 
-        let http = reqwest::Client::new();
-        let answer = http
+        let answer = super::http()
             .get(format!("{url}{API}/test"))
             .query(&[("key", &key)])
             .send()
@@ -45,47 +44,20 @@ impl Service for Maloja {
         }
 
         Ok(Account {
-            server: url.clone(),
+            name: name(&url).await.unwrap_or_else(|| host(&url)),
+            server: url,
             session: key,
-            name: name(&http, &url).await.unwrap_or_else(|| host(&url)),
             enabled: true,
             ..Account::default()
         })
     }
 
-    fn scrobbler(&self, account: &Account) -> Result<Arc<dyn Scrobbler>> {
-        if !account.linked() || account.server.is_empty() {
-            bail!("maloja has no server and api key");
-        }
-        Ok(Arc::new(Sender {
-            server: account.server.clone(),
-            key: account.session.clone(),
-            http: reqwest::Client::new(),
-        }))
-    }
-}
-
-/// Maloja has no now-playing concept, so this only ever submits finished listens, one request
-/// each.
-struct Sender {
-    server: String,
-    key: String,
-    http: reqwest::Client,
-}
-
-#[async_trait]
-impl Scrobbler for Sender {
-    fn id(&self) -> &'static str {
-        "maloja"
-    }
-
-    async fn scrobble(&self, plays: &[Play]) -> Result<()> {
+    async fn scrobble(&self, account: &Account, plays: &[Play]) -> Result<()> {
         for play in plays {
-            let answer: Answer = self
-                .http
-                .post(format!("{}{API}/newscrobble", self.server))
+            let answer: Answer = super::http()
+                .post(format!("{}{API}/newscrobble", account.server))
                 .json(&New {
-                    key: &self.key,
+                    key: &account.session,
                     artists: std::slice::from_ref(&play.artist),
                     title: &play.title,
                     album: play.release(),
@@ -139,8 +111,8 @@ struct Info {
 }
 
 /// What the instance calls itself, which is friendlier in the settings row than its host.
-async fn name(http: &reqwest::Client, url: &str) -> Option<String> {
-    let info: Info = http
+async fn name(url: &str) -> Option<String> {
+    let info: Info = super::http()
         .get(format!("{url}{API}/serverinfo"))
         .send()
         .await

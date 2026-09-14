@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use anyhow::Result;
@@ -115,25 +115,7 @@ impl Account {
     }
 }
 
-/// A service that accepts listens. `Service::scrobbler` builds one from a linked account.
-#[async_trait]
-pub trait Scrobbler: Send + Sync {
-    /// The service slug, which is also the log prefix.
-    fn id(&self) -> &'static str;
-
-    /// Tells the service what is playing right now. A service with no such concept keeps the
-    /// default and makes no request.
-    async fn now_playing(&self, play: &Play) -> Result<()> {
-        let _ = play;
-        Ok(())
-    }
-
-    /// Submits finished listens. Every service takes a batch, so one listen is a slice of one.
-    async fn scrobble(&self, plays: &[Play]) -> Result<()>;
-}
-
-/// A scrobbling service the settings screen offers: how it is linked, and how a link becomes a
-/// `Scrobbler`.
+/// A scrobbling service: how it is linked, and how a linked account submits listens.
 #[async_trait]
 pub trait Service: Send + Sync {
     /// The slug that keys the account in `settings.json` and names the i18n keys of its row.
@@ -152,6 +134,22 @@ pub trait Service: Send + Sync {
     /// the wait runs out.
     async fn connect(&self, secret: Secret) -> Result<Account>;
 
-    /// Builds the sender for an account `connect` returned.
-    fn scrobbler(&self, account: &Account) -> Result<Arc<dyn Scrobbler>>;
+    /// Tells the service what is playing right now. A service with no such concept keeps the
+    /// default and makes no request.
+    async fn now_playing(&self, account: &Account, play: &Play) -> Result<()> {
+        let _ = (account, play);
+        Ok(())
+    }
+
+    /// Submits finished listens. Every service takes a batch, so one listen is a slice of one.
+    /// The account is one `connect` returned, since a row only submits while its account is
+    /// linked and switched on.
+    async fn scrobble(&self, account: &Account, plays: &[Play]) -> Result<()>;
+}
+
+/// The one http client every service shares, so they pool connections and reuse TLS sessions
+/// between them rather than each holding its own.
+fn http() -> &'static reqwest::Client {
+    static HTTP: OnceLock<reqwest::Client> = OnceLock::new();
+    HTTP.get_or_init(reqwest::Client::new)
 }

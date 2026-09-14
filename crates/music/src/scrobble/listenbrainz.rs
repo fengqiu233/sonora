@@ -1,11 +1,9 @@
-use std::sync::Arc;
-
 use anyhow::{Context as _, Result, bail};
 use async_trait::async_trait;
 use reqwest::header::AUTHORIZATION;
 use serde::{Deserialize, Serialize};
 
-use super::{Account, Link, Play, Scrobbler, Secret, Service};
+use super::{Account, Link, Play, Secret, Service};
 
 /// The public instance. An account that names its own `server` is used instead, which is how a
 /// self-hosted ListenBrainz is reached without a second settings field.
@@ -40,7 +38,7 @@ impl Service for ListenBrainz {
             bail!("listenbrainz needs a user token");
         }
 
-        let answer: Validation = reqwest::Client::new()
+        let answer: Validation = super::http()
             .get(format!("{API}/1/validate-token"))
             .header(AUTHORIZATION, format!("Token {token}"))
             .send()
@@ -63,68 +61,45 @@ impl Service for ListenBrainz {
         })
     }
 
-    fn scrobbler(&self, account: &Account) -> Result<Arc<dyn Scrobbler>> {
-        if !account.linked() {
-            bail!("listenbrainz has no user token");
-        }
-        let api = match account.server.is_empty() {
-            true => API.to_owned(),
-            false => account.server.trim_end_matches('/').to_owned(),
-        };
-        Ok(Arc::new(Sender {
-            api,
-            token: account.session.clone(),
-            http: reqwest::Client::new(),
-        }))
-    }
-}
-
-struct Sender {
-    api: String,
-    token: String,
-    http: reqwest::Client,
-}
-
-#[async_trait]
-impl Scrobbler for Sender {
-    fn id(&self) -> &'static str {
-        "listenbrainz"
+    async fn now_playing(&self, account: &Account, play: &Play) -> Result<()> {
+        submit(account, "playing_now", &[listen(play, false)]).await
     }
 
-    async fn now_playing(&self, play: &Play) -> Result<()> {
-        self.submit("playing_now", &[listen(play, false)]).await
-    }
-
-    async fn scrobble(&self, plays: &[Play]) -> Result<()> {
+    async fn scrobble(&self, account: &Account, plays: &[Play]) -> Result<()> {
         for batch in plays.chunks(BATCH) {
             let listens: Vec<Listen<'_>> = batch.iter().map(|play| listen(play, true)).collect();
-            self.submit("single", &listens).await?;
+            submit(account, "single", &listens).await?;
         }
         Ok(())
     }
 }
 
-impl Sender {
-    async fn submit(&self, kind: &str, payload: &[Listen<'_>]) -> Result<()> {
-        let answer = self
-            .http
-            .post(format!("{}/1/submit-listens", self.api))
-            .header(AUTHORIZATION, format!("Token {}", self.token))
-            .json(&Submission {
-                listen_type: kind,
-                payload,
-            })
-            .send()
-            .await
-            .context("cannot reach listenbrainz")?;
-
-        if answer.status().is_success() {
-            return Ok(());
-        }
-        let status = answer.status();
-        let body = answer.text().await.unwrap_or_default();
-        bail!("listenbrainz refused the request ({status}): {body}");
+/// Where this account's instance lives. An empty `server` means the public one.
+fn api(account: &Account) -> &str {
+    match account.server.is_empty() {
+        true => API,
+        false => account.server.trim_end_matches('/'),
     }
+}
+
+async fn submit(account: &Account, kind: &str, payload: &[Listen<'_>]) -> Result<()> {
+    let answer = super::http()
+        .post(format!("{}/1/submit-listens", api(account)))
+        .header(AUTHORIZATION, format!("Token {}", account.session))
+        .json(&Submission {
+            listen_type: kind,
+            payload,
+        })
+        .send()
+        .await
+        .context("cannot reach listenbrainz")?;
+
+    if answer.status().is_success() {
+        return Ok(());
+    }
+    let status = answer.status();
+    let body = answer.text().await.unwrap_or_default();
+    bail!("listenbrainz refused the request ({status}): {body}");
 }
 
 /// Builds one listen. `timed` is false for the now-playing report, which carries no start time.

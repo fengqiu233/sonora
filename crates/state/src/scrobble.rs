@@ -3,12 +3,12 @@
 //! One entity drives every service at once. [`Scrobbling`] holds a [`ScrobbleRow`] per service, follows
 //! [`Playback`] and fans the same listen out to whichever rows are linked and turned on.
 
-use std::sync::Arc;
 use std::time::SystemTime;
 
 use gpui::{Context, Entity, SharedString, Task};
 use music::Track;
 use music::scrobble::{self, Account, Link, Play, Secret, Service};
+use std::sync::Arc;
 use tokio::task::AbortHandle;
 
 use crate::playback::PlaybackEvent;
@@ -29,9 +29,9 @@ pub enum ScrobbleState {
 /// A service, its link and the sender that link produced.
 pub struct ScrobbleRow {
     service: Arc<dyn Service>,
-    scrobbler: Option<Arc<dyn scrobble::Scrobbler>>,
+    /// The stored account as settings last had it, blank when the service was never linked.
+    account: Account,
     state: ScrobbleState,
-    enabled: bool,
     /// Whether the current play has already gone to this service. Per row, so one service being
     /// down never costs another its listen.
     sent: bool,
@@ -64,7 +64,12 @@ impl ScrobbleRow {
 
     /// Whether listens are being submitted. A linked service the user switched off stays linked.
     pub fn enabled(&self) -> bool {
-        self.enabled
+        self.account.enabled
+    }
+
+    /// Whether listens go to this service right now.
+    fn live(&self) -> bool {
+        self.account.linked() && self.account.enabled
     }
 }
 
@@ -98,9 +103,8 @@ impl Scrobbling {
             .into_iter()
             .map(|service| ScrobbleRow {
                 service,
-                scrobbler: None,
+                account: Account::default(),
                 state: ScrobbleState::Off,
-                enabled: false,
                 sent: false,
             })
             .collect();
@@ -208,23 +212,12 @@ impl Scrobbling {
         let accounts = self.settings.read(cx).scrobbling().clone();
 
         for row in &mut self.rows {
-            let account = accounts.get(row.id()).cloned().unwrap_or_default();
-            row.enabled = account.enabled;
-            row.scrobbler = match account.linked() && account.enabled {
-                true => match row.service.scrobbler(&account) {
-                    Ok(scrobbler) => Some(scrobbler),
-                    Err(error) => {
-                        log::warn!("scrobble: cannot use {}: {error:#}", row.id());
-                        None
-                    }
-                },
-                false => None,
-            };
+            row.account = accounts.get(row.id()).cloned().unwrap_or_default();
             if row.linking() {
                 continue;
             }
-            row.state = match account.linked() {
-                true => ScrobbleState::On(SharedString::from(account.name)),
+            row.state = match row.account.linked() {
+                true => ScrobbleState::On(SharedString::from(row.account.name.clone())),
                 false => ScrobbleState::Off,
             };
         }
@@ -251,15 +244,15 @@ impl Scrobbling {
         };
 
         for row in &self.rows {
-            let Some(scrobbler) = row.scrobbler.clone() else {
+            if !row.live() {
                 continue;
-            };
-            let play = play.clone();
+            }
+            let (service, account, play) = (row.service.clone(), row.account.clone(), play.clone());
             self.io.spawn(async move {
-                if let Err(error) = scrobbler.now_playing(&play).await {
+                if let Err(error) = service.now_playing(&account, &play).await {
                     log::warn!(
                         "scrobble: cannot report the current track to {}: {error:#}",
-                        scrobbler.id()
+                        service.id()
                     );
                 }
             });
@@ -285,20 +278,20 @@ impl Scrobbling {
         }
 
         for row in &mut self.rows {
-            if row.sent {
+            if row.sent || !row.live() {
                 continue;
             }
-            let Some(scrobbler) = row.scrobbler.clone() else {
-                continue;
-            };
             row.sent = true;
 
-            let play = play.clone();
+            let (service, account, play) = (row.service.clone(), row.account.clone(), play.clone());
             self.io.spawn(async move {
-                if let Err(error) = scrobbler.scrobble(std::slice::from_ref(&play)).await {
+                if let Err(error) = service
+                    .scrobble(&account, std::slice::from_ref(&play))
+                    .await
+                {
                     log::warn!(
                         "scrobble: cannot submit the track to {}: {error:#}",
-                        scrobbler.id()
+                        service.id()
                     );
                 }
             });

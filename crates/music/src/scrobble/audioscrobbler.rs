@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
@@ -9,7 +8,7 @@ use serde::Deserialize;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::net::TcpListener;
 
-use super::{Account, Link, Play, Scrobbler, Secret, Service};
+use super::{Account, Link, Play, Secret, Service};
 
 /// The loopback address the browser hands the token back on.
 const PORT: u16 = 8990;
@@ -87,13 +86,12 @@ impl Service for AudioScrobbler {
         open::that_in_background(authorize_url(self.authorize, &key));
 
         let token = token(listener).await?;
-        let http = reqwest::Client::new();
         let form = vec![
             ("method".to_owned(), "auth.getSession".to_owned()),
             ("api_key".to_owned(), key.clone()),
             ("token".to_owned(), token),
         ];
-        let answer = post(&http, self.endpoint, &shared, form).await?;
+        let answer = post(self.endpoint, &shared, form).await?;
         let Some(granted) = answer.session else {
             bail!("{} returned no session", self.id);
         };
@@ -108,40 +106,7 @@ impl Service for AudioScrobbler {
         })
     }
 
-    fn scrobbler(&self, account: &Account) -> Result<Arc<dyn Scrobbler>> {
-        if !account.linked() {
-            bail!("{} has no session key", self.id);
-        }
-        Ok(Arc::new(Sender {
-            id: self.id,
-            endpoint: self.endpoint,
-            batch: self.batch,
-            key: account.key.clone(),
-            secret: account.secret.clone(),
-            session: account.session.clone(),
-            http: reqwest::Client::new(),
-        }))
-    }
-}
-
-/// The submitting half: one account's credentials and the client that carries them.
-struct Sender {
-    id: &'static str,
-    endpoint: &'static str,
-    batch: usize,
-    key: String,
-    secret: String,
-    session: String,
-    http: reqwest::Client,
-}
-
-#[async_trait]
-impl Scrobbler for Sender {
-    fn id(&self) -> &'static str {
-        self.id
-    }
-
-    async fn now_playing(&self, play: &Play) -> Result<()> {
+    async fn now_playing(&self, account: &Account, play: &Play) -> Result<()> {
         let mut form = vec![
             ("method".to_owned(), "track.updateNowPlaying".to_owned()),
             ("artist".to_owned(), play.artist.clone()),
@@ -151,10 +116,10 @@ impl Scrobbler for Sender {
         if let Some(album) = play.release() {
             form.push(("album".to_owned(), album.to_owned()));
         }
-        self.call(form).await
+        self.call(account, form).await
     }
 
-    async fn scrobble(&self, plays: &[Play]) -> Result<()> {
+    async fn scrobble(&self, account: &Account, plays: &[Play]) -> Result<()> {
         for batch in plays.chunks(self.batch) {
             let mut form = vec![("method".to_owned(), "track.scrobble".to_owned())];
             for (index, play) in batch.iter().enumerate() {
@@ -169,13 +134,13 @@ impl Scrobbler for Sender {
                     form.push((self.slot("album", index), album.to_owned()));
                 }
             }
-            self.call(form).await?;
+            self.call(account, form).await?;
         }
         Ok(())
     }
 }
 
-impl Sender {
+impl AudioScrobbler {
     /// Names one listen's parameter. A batching server numbers them, a single-listen one takes
     /// the plain name and would read a numbered parameter as an array.
     fn slot(&self, name: &str, index: usize) -> String {
@@ -185,12 +150,10 @@ impl Sender {
         }
     }
 
-    async fn call(&self, mut form: Vec<(String, String)>) -> Result<()> {
-        form.push(("api_key".to_owned(), self.key.clone()));
-        form.push(("sk".to_owned(), self.session.clone()));
-        post(&self.http, self.endpoint, &self.secret, form)
-            .await
-            .map(|_| ())
+    async fn call(&self, account: &Account, mut form: Vec<(String, String)>) -> Result<()> {
+        form.push(("api_key".to_owned(), account.key.clone()));
+        form.push(("sk".to_owned(), account.session.clone()));
+        post(self.endpoint, &account.secret, form).await.map(|_| ())
     }
 }
 
@@ -241,17 +204,12 @@ async fn token(listener: TcpListener) -> Result<String> {
 }
 
 /// Signs the form the way the protocol asks, posts it and turns a refusal into an error.
-async fn post(
-    http: &reqwest::Client,
-    endpoint: &str,
-    secret: &str,
-    mut form: Vec<(String, String)>,
-) -> Result<Answer> {
+async fn post(endpoint: &str, secret: &str, mut form: Vec<(String, String)>) -> Result<Answer> {
     form.sort_by(|left, right| left.0.cmp(&right.0));
     form.push(("api_sig".to_owned(), signature(&form, secret)));
     form.push(("format".to_owned(), "json".to_owned()));
 
-    let answer: Answer = http
+    let answer: Answer = super::http()
         .post(endpoint)
         .form(&form)
         .send()
