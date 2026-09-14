@@ -16,7 +16,7 @@ use std::cell::RefCell;
 use std::ffi::c_void;
 use std::rc::Rc;
 
-use gpui::{App, AppContext as _, Context, Entity, Global, Task};
+use gpui::{App, AppContext as _, Context, Entity, Global, Subscription, Task, WindowId};
 use i18n::t;
 use state::{PlaybackState, Sonora};
 use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
@@ -94,9 +94,13 @@ struct Look {
     size: i32,
 }
 
+/// The toolbar of the one window that has one. Lives exactly as long as that
+/// window: `closed` takes it down with the window, so a closed-to-tray Sonora
+/// never pushes buttons at a handle that no longer exists.
 struct Installed {
-    hwnd: isize,
+    window: WindowId,
     _bar: Entity<ThumbBar>,
+    _closed: Subscription,
 }
 
 impl Global for Installed {}
@@ -104,22 +108,34 @@ impl Global for Installed {}
 /// Puts the toolbar under `hwnd`'s taskbar preview, replacing one installed on
 /// an earlier window. Returns `false` when the shell will not hand out a
 /// taskbar list, which is normal on a machine with no taskbar at all.
-pub fn install(hwnd: *mut c_void, cx: &mut App) -> bool {
-    let hwnd = HWND(hwnd);
+pub fn install(window: WindowId, hwnd: *mut c_void, cx: &mut App) -> bool {
     if let Some(installed) = cx.try_global::<Installed>()
-        && installed.hwnd == hwnd.0 as isize
+        && installed.window == window
     {
         return true;
     }
 
     let (sender, receiver) = mpsc::unbounded_channel();
-    let Some(bar) = Bar::new(hwnd, sender) else {
+    let Some(bar) = Bar::new(HWND(hwnd), sender) else {
         return false;
     };
     let entity = cx.new(|cx| ThumbBar::new(bar, receiver, cx));
+    let closed = cx.on_window_closed(move |cx, closed| {
+        if closed != window {
+            return;
+        }
+        let ours = cx
+            .try_global::<Installed>()
+            .is_some_and(|installed| installed.window == window);
+        if ours {
+            log::debug!("thumbbar: the window closed, taking the toolbar down");
+            cx.remove_global::<Installed>();
+        }
+    });
     cx.set_global(Installed {
-        hwnd: hwnd.0 as isize,
+        window,
         _bar: entity,
+        _closed: closed,
     });
     true
 }
@@ -212,6 +228,7 @@ impl Bar {
             taskbar,
             hwnd,
             buttons: buttons(),
+            shown: None,
             images: None,
             look: None,
             created,
@@ -256,6 +273,9 @@ struct Shared {
     taskbar: ITaskbarList3,
     hwnd: HWND,
     buttons: [THUMBBUTTON; 3],
+    /// The last state dressed, replayed when the shell asks for the buttons
+    /// again.
+    shown: Option<Shown>,
     images: Option<HIMAGELIST>,
     look: Option<Look>,
     created: u32,
@@ -265,11 +285,12 @@ struct Shared {
 
 impl Shared {
     /// Writes `shown` into the button array, rebuilding the glyphs when the look
-    /// changed. Does not talk to the shell.
+    /// changed. Does not talk to the shell beyond handing over the image list.
     fn dress(&mut self, shown: &Shown) {
         if self.look != Some(shown.look) {
             self.redraw(shown.look);
         }
+        self.shown = Some(shown.clone());
 
         let toggle = match shown.playing {
             true => PAUSE,
@@ -336,7 +357,12 @@ impl Shared {
             return;
         };
         if let Err(error) = unsafe { self.taskbar.ThumbBarSetImageList(self.hwnd, images) } {
-            log::warn!("thumbbar: cannot hand over the button glyphs: {error:#}");
+            // Before the taskbar button exists this is expected; `arrived`
+            // draws again once the shell announces it.
+            match self.added {
+                true => log::warn!("thumbbar: cannot hand over the button glyphs: {error:#}"),
+                false => log::debug!("thumbbar: no taskbar button for the glyphs yet: {error:#}"),
+            }
             let _ = unsafe { ImageList_Destroy(Some(images)) };
             return;
         }
@@ -346,6 +372,18 @@ impl Shared {
         self.clear();
         self.images = Some(images);
         self.look = Some(look);
+    }
+
+    /// The shell has just created the taskbar button, at startup or after
+    /// Explorer restarted, so nothing it was handed before survived. Draws the
+    /// glyphs again and adds the buttons afresh from the last dressed state.
+    fn arrived(&mut self) {
+        self.added = false;
+        self.look = None;
+        if let Some(shown) = self.shown.clone() {
+            self.dress(&shown);
+        }
+        self.push();
     }
 
     fn clear(&mut self) {
@@ -370,10 +408,8 @@ unsafe extern "system" fn subclass(
 
     if let Ok(mut shared) = shared.try_borrow_mut() {
         if message == shared.created {
-            // The taskbar button has just appeared, so the add can land now.
             log::debug!("thumbbar: the shell created the taskbar button");
-            shared.added = false;
-            shared.push();
+            shared.arrived();
         } else if message == WM_COMMAND && (wparam.0 as u32 >> 16) == THBN_CLICKED {
             let event = match wparam.0 as u32 & 0xffff {
                 PREVIOUS => Some(Event::Previous),

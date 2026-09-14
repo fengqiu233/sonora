@@ -320,7 +320,7 @@ fn open_window(cx: &mut App) {
             state::attach_remote(handle, cx);
             #[cfg(windows)]
             if let Some(handle) = handle {
-                thumbbar::install(handle, cx);
+                thumbbar::install(window.window_handle().window_id(), handle, cx);
             }
             state::remember_window(window, cx);
             cx.new(|cx| Root::new(session, library, playback, queue, window, cx))
