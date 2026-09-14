@@ -2,7 +2,6 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
 use gpui::{App, AppContext as _, Context, Entity, Global, Task};
-use i18n::t;
 use music::{MediaKind, MusicProvider, Track};
 use tokio::sync::watch;
 

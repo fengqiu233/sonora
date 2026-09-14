@@ -531,7 +531,6 @@ settings-discord-buttons-pick = Choose buttons
 # the Discord status when the track is left out of it
 discord-listening = Listening to music
 get-sonora = Get Sonora
-listen-on = Listen on { $provider }
 settings-fullscreen-controls-autohide-automatic = Automatic
 settings-fullscreen-controls-autohide-always-hidden = Always hidden
 settings-fullscreen-controls-autohide-always-shown = Always shown
