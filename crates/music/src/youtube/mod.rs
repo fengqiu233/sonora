@@ -2,6 +2,7 @@ mod accounts;
 mod auth;
 mod client;
 mod genres;
+mod lyrics;
 mod playback;
 mod subscriptions;
 mod trim;
@@ -22,6 +23,7 @@ use crate::{
     UserProfile, WebSignIn, credentials,
 };
 pub use client::YouTubeClient;
+pub use lyrics::YouTubeLyrics;
 
 const GUEST_ID: &str = "youtube-guest";
 /// Google's sign-in page, told to come back to YouTube Music once the account is in: the same url

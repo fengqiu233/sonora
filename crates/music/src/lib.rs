@@ -118,9 +118,6 @@ pub trait MusicApi: Send + Sync {
         anyhow::bail!("this provider does not support file deletion")
     }
     async fn track_playcount(&self, track_id: &str) -> Result<Option<u64>>;
-    async fn track_lyrics(&self, _track_id: &str) -> Result<Option<Lyrics>> {
-        Ok(None)
-    }
     async fn playlists(&self) -> Result<Vec<Playlist>>;
     /// Change a provider's own library pin, rather than a local sidebar shortcut.
     async fn set_library_item_pinned(&self, _uri: &str, _pinned: bool) -> Result<LibraryPinResult> {

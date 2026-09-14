@@ -578,6 +578,19 @@ settings-blur-lyrics-detail = Blur upcoming and previous lines in the lyrics pan
 settings-romanized-lyrics = Romanized lyrics
 settings-romanized-lyrics-detail = Show locally generated pronunciation for selected writing systems
 settings-romanization-writing-systems = Writing systems
+settings-lyrics-providers = Lyrics providers
+settings-lyrics-providers-detail = Choose which services to search for lyrics
+settings-lyrics-providers-selected = { $count ->
+    [one] { $count } selected
+   *[other] { $count } selected
+    }
+settings-lyrics-provider-spotify = Spotify
+settings-lyrics-provider-youtube = YouTube Music
+settings-lyrics-provider-apple-music = Apple Music
+settings-lyrics-provider-musixmatch = Musixmatch
+settings-lyrics-provider-lrclib = LRCLIB
+settings-lyrics-provider-kugou = Kugou
+settings-lyrics-provider-netease = NetEase
 settings-romanization-japanese = Japanese
 settings-romanization-chinese = Chinese
 settings-romanization-korean = Korean

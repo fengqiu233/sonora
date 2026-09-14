@@ -280,6 +280,7 @@ struct Values {
     discord_sonora_button: bool,
     discord_provider_button: bool,
     lyrics_for_local_files: bool,
+    lyrics_providers: Vec<String>,
     karaoke_lyrics: bool,
     blur_lyrics: bool,
     romanized_lyrics: bool,
@@ -351,6 +352,15 @@ impl Default for Values {
             discord_sonora_button: true,
             discord_provider_button: true,
             lyrics_for_local_files: true,
+            lyrics_providers: [
+                "Spotify",
+                "YouTube Music",
+                "Apple Music",
+                "Musixmatch",
+                "LrcLib",
+            ]
+            .map(str::to_owned)
+            .to_vec(),
             karaoke_lyrics: true,
             blur_lyrics: true,
             romanized_lyrics: true,
@@ -537,6 +547,14 @@ impl AppSettings {
             }
             None => (Values::default(), writable),
         };
+        if values.lyrics_providers.iter().any(|name| name == "native") {
+            values.lyrics_providers.retain(|name| name != "native");
+            for name in ["Spotify", "YouTube Music"] {
+                if !values.lyrics_providers.iter().any(|held| held == name) {
+                    values.lyrics_providers.push(name.to_owned());
+                }
+            }
+        }
         // A single `local_folder` predates multiple local libraries; fold it into
         // `local_folders` once and never write the singular field back out.
         if let Some(folder) = values.local_folder.take()
@@ -632,6 +650,17 @@ impl AppSettings {
 
     pub fn lyrics_for_local_files(&self) -> bool {
         self.values.lyrics_for_local_files
+    }
+
+    pub fn lyrics_providers(&self) -> &[String] {
+        &self.values.lyrics_providers
+    }
+
+    pub fn lyrics_provider_enabled(&self, provider: &str) -> bool {
+        self.values
+            .lyrics_providers
+            .iter()
+            .any(|name| name == provider)
     }
 
     pub fn karaoke_lyrics(&self) -> bool {
@@ -927,6 +956,15 @@ impl AppSettings {
 
     pub fn set_lyrics_for_local_files(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.values.lyrics_for_local_files = enabled;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_lyrics_provider(&mut self, provider: &str, enabled: bool, cx: &mut Context<Self>) {
+        self.values.lyrics_providers.retain(|name| name != provider);
+        if enabled {
+            self.values.lyrics_providers.push(provider.to_owned());
+        }
+        self.values.lyrics_providers.sort();
         self.schedule_save(cx);
     }
 

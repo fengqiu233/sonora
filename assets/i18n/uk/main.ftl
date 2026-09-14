@@ -579,6 +579,20 @@ settings-blur-lyrics-detail = Розмиває попередні та наст�
 settings-romanized-lyrics = Романізація тексту
 settings-romanized-lyrics-detail = Показувати локально зібрану вимову для вибраних систем письма
 settings-romanization-writing-systems = Системи письма
+settings-lyrics-providers = Джерела текстів пісень
+settings-lyrics-providers-detail = Виберіть сервіси для пошуку текстів пісень
+settings-lyrics-providers-selected = { $count ->
+    [one] Вибрано { $count } джерело
+    [few] Вибрано { $count } джерела
+   *[other] Вибрано { $count } джерел
+    }
+settings-lyrics-provider-spotify = Spotify
+settings-lyrics-provider-youtube = YouTube Music
+settings-lyrics-provider-apple-music = Apple Music
+settings-lyrics-provider-musixmatch = Musixmatch
+settings-lyrics-provider-lrclib = LRCLIB
+settings-lyrics-provider-kugou = Kugou
+settings-lyrics-provider-netease = NetEase
 settings-romanization-japanese = Японське письмо
 settings-romanization-chinese = Китайське письмо
 settings-romanization-korean = Корейське письмо

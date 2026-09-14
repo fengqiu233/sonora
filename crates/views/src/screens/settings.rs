@@ -281,6 +281,7 @@ impl SettingsView {
                 }
                 rows.extend([
                     self.title("settings-group-lyrics", cx),
+                    Row::Item(self.lyrics_providers_row(cx).into_any_element()),
                     Row::Item(self.karaoke_lyrics_row(cx).into_any_element()),
                     Row::Item(self.romanized_lyrics_row(cx).into_any_element()),
                 ]);
@@ -1811,6 +1812,47 @@ impl SettingsView {
                     });
                 }))
                 .into_any_element(),
+        )
+    }
+
+    fn lyrics_providers_row(&self, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = *cx.theme();
+        let settings = self.settings.read(cx);
+        let providers = [
+            ("Spotify", "settings-lyrics-provider-spotify"),
+            ("YouTube Music", "settings-lyrics-provider-youtube"),
+            ("Apple Music", "settings-lyrics-provider-apple-music"),
+            ("Musixmatch", "settings-lyrics-provider-musixmatch"),
+            ("LrcLib", "settings-lyrics-provider-lrclib"),
+            ("Kugou", "settings-lyrics-provider-kugou"),
+            ("NetEase", "settings-lyrics-provider-netease"),
+        ];
+        let count = providers
+            .iter()
+            .filter(|(provider, _)| settings.lyrics_provider_enabled(provider))
+            .count();
+        let picker = Picker::new(
+            "lyrics-providers",
+            &self.popovers,
+            t!("settings-lyrics-providers-selected", count = count),
+        )
+        .sticky()
+        .items(providers.map(|(provider, label)| {
+            MenuItem::new(label, i18n::lookup(label, None))
+                .selected(settings.lyrics_provider_enabled(provider))
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings.update(cx, |settings, cx| {
+                        let enabled = settings.lyrics_provider_enabled(provider);
+                        settings.set_lyrics_provider(provider, !enabled, cx);
+                    });
+                }))
+        }));
+        self.row(
+            t!("settings-lyrics-providers"),
+            t!("settings-lyrics-providers-detail"),
+            theme.muted_foreground,
+            theme.text(Text::Small),
+            picker.into_any_element(),
         )
     }
 

@@ -26,6 +26,7 @@ use crate::{MusicApi as _, MusicProvider, ProviderSession, Shape, SignInFailure,
 
 pub use auth::AuthConfig;
 pub use client::LibrespotClient;
+pub use lyrics::SpotifyLyrics;
 
 pub struct SpotifyProvider {
     config: AuthConfig,

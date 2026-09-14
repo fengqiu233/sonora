@@ -581,6 +581,20 @@ settings-blur-lyrics-detail = Rozmywa poprzednie i następne wersy w panelu teks
 settings-romanized-lyrics = Latynizacja tekstu
 settings-romanized-lyrics-detail = Pokazuj wymowę generowaną lokalnie dla wybranych systemów pisma
 settings-romanization-writing-systems = Systemy pisma
+settings-lyrics-providers = Źródła tekstów piosenek
+settings-lyrics-providers-detail = Wybierz serwisy do wyszukiwania tekstów piosenek
+settings-lyrics-providers-selected = { $count ->
+    [one] Wybrano { $count } źródło
+    [few] Wybrano { $count } źródła
+   *[other] Wybrano { $count } źródeł
+    }
+settings-lyrics-provider-spotify = Spotify
+settings-lyrics-provider-youtube = YouTube Music
+settings-lyrics-provider-apple-music = Apple Music
+settings-lyrics-provider-musixmatch = Musixmatch
+settings-lyrics-provider-lrclib = LRCLIB
+settings-lyrics-provider-kugou = Kugou
+settings-lyrics-provider-netease = NetEase
 settings-romanization-japanese = Pismo japońskie
 settings-romanization-chinese = Pismo chińskie
 settings-romanization-korean = Pismo koreańskie
