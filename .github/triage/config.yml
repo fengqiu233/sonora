@@ -37,8 +37,8 @@ platforms:
 
 people:
   nolight132:
-    areas: [ui, library, player, playback, search, settings, spotify, local, lyrics, nix, packaging, ci]
-    hardware: [linux, wayland, niri, amd-vulkan, pipewire]
+    areas: [spotify, ui]
+    hardware: [linux, pipewire]
 
   zxsleebu:
     areas: [ui, library, player, lyrics]
