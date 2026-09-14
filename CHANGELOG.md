@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Buttons on the Discord status, under Settings, Discord. Pick Provider to link the track on the
+  service it plays from, Sonora to link the project page, or both. Discord shows them to your
+  friends only, never to you, and the provider button stays off while Hide details is on.
+
 ### Fixed
 
 - On Linux with an NVIDIA GPU, clicking Sign in on YouTube Music under Wayland closed Sonora with

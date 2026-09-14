@@ -277,6 +277,8 @@ struct Values {
     discord_show_paused: bool,
     discord_badge: bool,
     discord_without_details: bool,
+    discord_sonora_button: bool,
+    discord_provider_button: bool,
     lyrics_for_local_files: bool,
     karaoke_lyrics: bool,
     blur_lyrics: bool,
@@ -346,6 +348,8 @@ impl Default for Values {
             discord_show_paused: false,
             discord_badge: false,
             discord_without_details: false,
+            discord_sonora_button: true,
+            discord_provider_button: true,
             lyrics_for_local_files: true,
             karaoke_lyrics: true,
             blur_lyrics: true,
@@ -614,6 +618,16 @@ impl AppSettings {
     /// Whether the Discord status leaves the track out and only says that music is playing.
     pub fn discord_without_details(&self) -> bool {
         self.values.discord_without_details
+    }
+
+    /// Whether the Discord status carries a button that opens the Sonora project page.
+    pub fn discord_sonora_button(&self) -> bool {
+        self.values.discord_sonora_button
+    }
+
+    /// Whether the Discord status carries a button that opens the track on its provider.
+    pub fn discord_provider_button(&self) -> bool {
+        self.values.discord_provider_button
     }
 
     pub fn lyrics_for_local_files(&self) -> bool {
@@ -898,6 +912,16 @@ impl AppSettings {
 
     pub fn set_discord_without_details(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.values.discord_without_details = enabled;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_discord_sonora_button(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.values.discord_sonora_button = enabled;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_discord_provider_button(&mut self, enabled: bool, cx: &mut Context<Self>) {
+        self.values.discord_provider_button = enabled;
         self.schedule_save(cx);
     }
 

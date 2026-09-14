@@ -539,8 +539,11 @@ settings-discord-badge = Показувати значок сервісу
 settings-discord-badge-detail = Позначає статус невеликою іконкою сервісу, з якого грає трек
 settings-discord-anonymous = Приховати подробиці
 settings-discord-anonymous-detail = Повідомляє лише те, що грає музика, без назви, виконавця й обкладинки
-# the Discord status when the track is left out of it
+settings-discord-buttons = Кнопки
+settings-discord-buttons-detail = Посилання під статусом, які можуть відкрити друзі: на трек у його сервісі й на Sonora
+settings-discord-buttons-pick = Обрати кнопки
 discord-listening = Слухає музику
+# the Discord status when the track is left out of it
 settings-normalisation = Нормалізація гучності
 settings-normalisation-detail = Тримає треки на однаковій гучності
 settings-gapless = Відтворення без пауз

@@ -525,8 +525,13 @@ settings-discord-badge = Show the provider badge
 settings-discord-badge-detail = Mark the status with a small icon of the service the track came from
 settings-discord-anonymous = Hide details
 settings-discord-anonymous-detail = Say only that music is playing, without the title, artist or artwork
+settings-discord-buttons = Buttons
+settings-discord-buttons-detail = Links under the status for your friends to open, one to the track on its service and one to Sonora
+settings-discord-buttons-pick = Choose buttons
 # the Discord status when the track is left out of it
 discord-listening = Listening to music
+get-sonora = Get Sonora
+listen-on = Listen on { $provider }
 settings-fullscreen-controls-autohide-automatic = Automatic
 settings-fullscreen-controls-autohide-always-hidden = Always hidden
 settings-fullscreen-controls-autohide-always-shown = Always shown

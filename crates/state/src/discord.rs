@@ -3,10 +3,10 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use discord_rich_presence::{DiscordIpc, DiscordIpcClient, activity};
 use gpui::{App, AppContext as _, Context, Entity, Global, Task};
 use i18n::t;
-use music::Track;
+use music::{MediaKind, MusicProvider, Track};
 use tokio::sync::watch;
 
-use crate::{AppSettings, Cover, DiscordName, Io, Playback, Session};
+use crate::{AppSettings, Cover, DiscordName, Io, Playback, Session, Shelf};
 
 const APPLICATION_ID: &str = "1547350467904806923";
 const RETRY_DELAY: Duration = Duration::from_secs(3);
@@ -15,6 +15,8 @@ const MAX_START_DRIFT_SECONDS: u64 = 2;
 const MAX_TEXT_UTF16_UNITS: usize = 128;
 /// What the status says when it names the music rather than a service.
 const MUSIC: &str = "Music";
+/// Where the Sonora button sends a friend who presses it.
+const SONORA_URL: &str = "https://sonorahq.org";
 
 struct Attached {
     _discord: Entity<Discord>,
@@ -50,6 +52,15 @@ struct Presence {
     image_text: Option<String>,
     started_at: Option<i64>,
     ends_at: Option<i64>,
+    buttons: Option<Vec<Button>>,
+}
+
+/// A link under the status. Discord shows at most two, and only to other people, so the user
+/// never sees their own buttons.
+#[derive(Clone, Debug, PartialEq)]
+struct Button {
+    label: String,
+    url: String,
 }
 
 /// The provider a track came from, as the presence shows it. `badge` is the provider slug, which
@@ -195,6 +206,7 @@ impl Discord {
                 image_text: None,
                 started_at: playing.then_some(since),
                 ends_at: None,
+                buttons: buttons(settings, session, None),
             });
         }
 
@@ -214,6 +226,7 @@ impl Discord {
             ends_at: started_at
                 .filter(|_| duration > 0)
                 .map(|started_at| started_at.saturating_add(duration)),
+            buttons: buttons(settings, session, provider.zip(track.id.as_deref())),
         })
     }
 
@@ -379,6 +392,13 @@ fn activity(shown: &Shown) -> Option<activity::Activity<'_>> {
     if let Some(assets) = assets(presence) {
         activity = activity.assets(assets);
     }
+    if let Some(buttons) = presence.buttons.as_deref() {
+        let buttons = buttons
+            .iter()
+            .map(|button| activity::Button::new(button.label.as_str(), button.url.as_str()))
+            .collect();
+        activity = activity.buttons(buttons);
+    }
 
     let Some(started_at) = presence.started_at else {
         return Some(activity);
@@ -416,9 +436,40 @@ fn assets(presence: &Presence) -> Option<activity::Assets<'_>> {
     Some(assets)
 }
 
+/// The buttons the settings ask for, or nothing when there are none. The provider button links
+/// the track itself, so `track` is `None` when the details are hidden and the link would give
+/// them away, and a provider without a public page for the track gets no button either.
+fn buttons(
+    settings: &AppSettings,
+    session: &Session,
+    track: Option<(&dyn MusicProvider, &str)>,
+) -> Option<Vec<Button>> {
+    let mut buttons = Vec::new();
+    if settings.discord_provider_button()
+        && let Some((provider, id)) = track
+        && let shelf = Shelf::of(id)
+        && !matches!(shelf, Shelf::Local)
+        && let Some(url) = session
+            .client_of(shelf)
+            .and_then(|client| client.share_url(MediaKind::Track, id))
+    {
+        buttons.push(Button {
+            label: t!("listen-on", provider = provider.name()).to_string(),
+            url,
+        });
+    }
+    if settings.discord_sonora_button() {
+        buttons.push(Button {
+            label: "Get Sonora".to_string(),
+            url: SONORA_URL.to_string(),
+        });
+    }
+    (!buttons.is_empty()).then_some(buttons)
+}
+
 /// What the status says when the track is deliberately left out of it.
 fn anonymous_details() -> String {
-    let text = t!("discord-listening").to_string();
+    let text = "Listening to music".to_string();
     fit_text(&text).unwrap_or(text)
 }
 

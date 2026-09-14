@@ -541,8 +541,11 @@ settings-discord-badge = Pokaż ikonę serwisu
 settings-discord-badge-detail = Oznacza status małą ikoną serwisu, z którego pochodzi utwór
 settings-discord-anonymous = Ukryj szczegóły
 settings-discord-anonymous-detail = Informuje tylko, że muzyka gra, bez tytułu, wykonawcy i okładki
-# the Discord status when the track is left out of it
+settings-discord-buttons = Przyciski
+settings-discord-buttons-detail = Odnośniki pod statusem, które znajomi mogą otworzyć: do utworu w jego serwisie i do Sonory
+settings-discord-buttons-pick = Wybierz przyciski
 discord-listening = Słucha muzyki
+# the Discord status when the track is left out of it
 settings-normalisation = Normalizacja głośności
 settings-normalisation-detail = Utrzymuje stałą głośność utworów
 settings-gapless = Odtwarzanie bez przerw
