@@ -19,7 +19,7 @@ use ui::{
     clock, snapped,
 };
 
-use crate::chrome::{Aside, PlayerBar, TitleBarOptions};
+use crate::chrome::{Aside, TitleBarOptions};
 use crate::shared::menus::ItemMenu;
 use crate::shared::transport::{NOTCH, like, moved, percent, transport, volume_icon};
 use crate::shared::visualizer::VisualizerDrive;
@@ -41,6 +41,7 @@ const RESERVE_REST: f32 = 1.3;
 const DOCK: f32 = 1.15;
 const DOCK_FULL: f32 = 1.7;
 const SINK: f32 = 24.;
+const LEAVE_DROP: f32 = 2.;
 const PILL_GAP: f32 = 2.;
 const SEEK_MAX: f32 = 420.;
 const VOLUME_RISE: f32 = 132.;
@@ -604,8 +605,16 @@ impl FullscreenView {
             .child(label(total, false))
     }
 
-    fn controls(&self, cx: &mut Context<Self>) -> impl IntoElement {
+    /// The pill, the seek bar and the transport row. Below `Room::Roomy` the row spans the
+    /// whole window, so the volume button steps one control in from the right edge to leave the
+    /// corner to the leave button.
+    fn controls(&self, room: Room, cx: &mut Context<Self>) -> impl IntoElement {
+        let theme = *cx.theme();
         let inline = self.panel.is_none();
+        let clear = match room.fits(Room::Roomy) {
+            true => Pixels::ZERO,
+            false => theme.metrics.control_small,
+        };
 
         div()
             .flex()
@@ -627,7 +636,7 @@ impl FullscreenView {
                     .child(
                         div()
                             .absolute()
-                            .right_0()
+                            .right(clear)
                             .top_0()
                             .bottom_0()
                             .flex()
@@ -637,7 +646,7 @@ impl FullscreenView {
             )
     }
 
-    fn dock(&self, cap: Pixels, hide: f32, cx: &mut Context<Self>) -> impl IntoElement {
+    fn dock(&self, cap: Pixels, hide: f32, room: Room, cx: &mut Context<Self>) -> impl IntoElement {
         div()
             .flex()
             .flex_none()
@@ -655,7 +664,7 @@ impl FullscreenView {
                         .flex()
                         .justify_center()
                         .top(px(SINK) * hide)
-                        .child(self.controls(cx)),
+                        .child(self.controls(room, cx)),
                 )
             })
     }
@@ -858,34 +867,22 @@ impl FullscreenView {
         )
     }
 
-    /// The leave button in the bottom right corner. It sinks and fades with the idle spring
-    /// rather than with the controls, so a pointer move still brings it back when the controls
-    /// are set to stay hidden. The compact spacer applies only while a player bar is there to
-    /// line up with.
-    fn leave(
-        &self,
-        idle: f32,
-        bar: bool,
-        room: Room,
-        window: &Window,
-        cx: &App,
-    ) -> impl IntoElement {
+    /// The leave button in the bottom right corner, centred on a player bar's height at every
+    /// width, so the breakpoint that stacks the chrome player bar cannot move it, and nudged
+    /// down by `LEAVE_DROP` to sit level with the volume button's glyph. It sinks and
+    /// fades with the idle spring rather than with the controls, so a pointer move still brings
+    /// it back when the controls are set to stay hidden.
+    fn leave(&self, idle: f32, window: &Window, cx: &App) -> impl IntoElement {
         let theme = *cx.theme();
 
         div()
             .absolute()
-            .bottom(px(SINK) * -idle)
+            .bottom(px(SINK) * -idle - px(LEAVE_DROP))
             .right_5()
-            .h(PlayerBar::height(window, cx))
+            .h(snapped(theme.metrics.player_bar, window))
             .flex()
             .flex_col()
             .justify_center()
-            .when(bar && !room.fits(Room::Roomy), |this| {
-                // Match the second row of the compact player bar.
-                this.py_2()
-                    .gap_2()
-                    .child(div().h(snapped(theme.metrics.row, window)).flex_none())
-            })
             .opacity(1. - idle)
             .child(
                 Button::new("leave-fullscreen")
@@ -1039,7 +1036,12 @@ impl Render for FullscreenView {
                                 .child(self.artwork(side, raster_side, cover_scale, cx))
                                 .child(self.meta(hide, lift, cx))
                                 .when(split, |this| {
-                                    this.child(self.dock(theme.metrics.player_bar * DOCK, hide, cx))
+                                    this.child(self.dock(
+                                        theme.metrics.player_bar * DOCK,
+                                        hide,
+                                        room,
+                                        cx,
+                                    ))
                                 }),
                         )
                     })
@@ -1062,11 +1064,9 @@ impl Render for FullscreenView {
                 this.child(self.strip(hide, window, cx))
             })
             .when(!split, |this| {
-                this.child(self.dock(theme.metrics.player_bar * DOCK_FULL, hide, cx))
+                this.child(self.dock(theme.metrics.player_bar * DOCK_FULL, hide, room, cx))
             })
-            .when(idle < 1., |this| {
-                this.child(self.leave(idle, shown, room, window, cx))
-            })
+            .when(idle < 1., |this| this.child(self.leave(idle, window, cx)))
             .children(self.menu(cx))
     }
 }
