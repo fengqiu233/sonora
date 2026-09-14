@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(40);
-    let limit: u32 = std::env::var("LIMIT")
+    let limit: usize = std::env::var("LIMIT")
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(2000);
@@ -75,7 +75,8 @@ async fn main() -> Result<()> {
     }
 
     let started = Instant::now();
-    let saved = client.saved_tracks(limit).await?;
+    let mut saved = client.saved_tracks().await?;
+    saved.truncate(limit);
     eprintln!(
         "liked songs: {} fetched in {:?}",
         saved.len(),

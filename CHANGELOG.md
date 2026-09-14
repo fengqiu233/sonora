@@ -19,6 +19,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   a Wayland protocol error. The sign-in window now paints through shared memory on that driver,
   the same as setting `WEBKIT_DISABLE_DMABUF_RENDERER=1` by hand. A value you export yourself is
   left alone.
+- Libraries stopped at 10000 entries: a local folder with more songs than that listed only
+  the first 10000, and the same cap applied to albums, artists, playlists and every streaming
+  provider. Every list now loads in full.
 
 ## [0.35.0] - 2026-09-14
 

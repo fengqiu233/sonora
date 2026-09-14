@@ -14,14 +14,8 @@ const ALBUM_PREFIX: &str = "spotify:album:";
 const TRACK_PREFIX: &str = "spotify:track:";
 const UNKNOWN: &str = "Unknown";
 
-pub async fn saved_albums(session: &Session, limit: u32) -> Result<Vec<Album>> {
-    let items = collection2::saved_items(
-        session,
-        collection2::COLLECTION,
-        ALBUM_PREFIX,
-        limit as usize,
-    )
-    .await?;
+pub async fn saved_albums(session: &Session) -> Result<Vec<Album>> {
+    let items = collection2::saved_items(session, collection2::COLLECTION, ALBUM_PREFIX).await?;
     if items.is_empty() {
         return Ok(Vec::new());
     }

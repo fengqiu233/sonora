@@ -191,8 +191,8 @@ async fn metadata(session: &Session, artist_id: &str) -> Result<ArtistMessage> {
     ArtistMessage::parse_from_bytes(&body).context("cannot decode artist metadata protobuf")
 }
 
-pub async fn saved_artists(session: &Session, limit: u32) -> Result<Vec<SavedArtist>> {
-    let items = followed(session, limit as usize).await?;
+pub async fn saved_artists(session: &Session) -> Result<Vec<SavedArtist>> {
+    let items = followed(session).await?;
     if items.is_empty() {
         return Ok(Vec::new());
     }
@@ -213,14 +213,14 @@ pub async fn saved_artists(session: &Session, limit: u32) -> Result<Vec<SavedArt
         .collect())
 }
 
-async fn followed(session: &Session, limit: usize) -> Result<Vec<SavedItem>> {
-    match collection2::saved_items(session, collection2::ARTISTS, ARTIST_PREFIX, limit).await {
+async fn followed(session: &Session) -> Result<Vec<SavedItem>> {
+    match collection2::saved_items(session, collection2::ARTISTS, ARTIST_PREFIX).await {
         Ok(items) if !items.is_empty() => return Ok(items),
         Ok(_) => log::debug!("artists: the followed set is empty, reading the collection set"),
         Err(error) => log::warn!("artists: cannot read the followed set: {error:#}"),
     }
 
-    collection2::saved_items(session, collection2::COLLECTION, ARTIST_PREFIX, limit).await
+    collection2::saved_items(session, collection2::COLLECTION, ARTIST_PREFIX).await
 }
 
 pub async fn images(session: &Session, ids: &[String]) -> Result<HashMap<String, String>> {

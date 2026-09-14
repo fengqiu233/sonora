@@ -88,10 +88,10 @@ pub trait MusicApi: Send + Sync {
 
     /// The tracks the user starred. On a `Shape::Saved` provider this is the whole songs
     /// library; on a `Shape::Catalog` one it only feeds the hearts and the favorites filter.
-    async fn saved_tracks(&self, limit: u32) -> Result<Vec<Track>>;
+    async fn saved_tracks(&self) -> Result<Vec<Track>>;
 
     /// Every track the provider has. Only a `Shape::Catalog` provider answers.
-    async fn all_tracks(&self, _limit: u32) -> Result<Vec<Track>> {
+    async fn all_tracks(&self) -> Result<Vec<Track>> {
         Ok(Vec::new())
     }
 
@@ -121,7 +121,7 @@ pub trait MusicApi: Send + Sync {
     async fn track_lyrics(&self, _track_id: &str) -> Result<Option<Lyrics>> {
         Ok(None)
     }
-    async fn playlists(&self, limit: u32) -> Result<Vec<Playlist>>;
+    async fn playlists(&self) -> Result<Vec<Playlist>>;
     /// Change a provider's own library pin, rather than a local sidebar shortcut.
     async fn set_library_item_pinned(&self, _uri: &str, _pinned: bool) -> Result<LibraryPinResult> {
         anyhow::bail!("library pinning is not supported")
@@ -140,18 +140,18 @@ pub trait MusicApi: Send + Sync {
     async fn set_playlist_public(&self, playlist_id: &str, public: bool) -> Result<()>;
     async fn add_track_to_playlist(&self, playlist_id: &str, track_id: &str) -> Result<()>;
     async fn remove_track_from_playlist(&self, playlist_id: &str, track_id: &str) -> Result<()>;
-    async fn saved_albums(&self, limit: u32) -> Result<Vec<Album>>;
+    async fn saved_albums(&self) -> Result<Vec<Album>>;
 
     /// Every album the provider has. Only a `Shape::Catalog` provider answers.
-    async fn all_albums(&self, _limit: u32) -> Result<Vec<Album>> {
+    async fn all_albums(&self) -> Result<Vec<Album>> {
         Ok(Vec::new())
     }
 
     async fn set_album_saved(&self, album_id: &str, saved: bool) -> Result<()>;
-    async fn saved_artists(&self, limit: u32) -> Result<Vec<SavedArtist>>;
+    async fn saved_artists(&self) -> Result<Vec<SavedArtist>>;
 
     /// Every artist the provider has. Only a `Shape::Catalog` provider answers.
-    async fn all_artists(&self, _limit: u32) -> Result<Vec<SavedArtist>> {
+    async fn all_artists(&self) -> Result<Vec<SavedArtist>> {
         Ok(Vec::new())
     }
 

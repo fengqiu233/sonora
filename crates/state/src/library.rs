@@ -9,7 +9,6 @@ use music::{Album, MusicApi, Playlist, SavedArtist, Shape, Track};
 
 use crate::{Io, Outcome, Session, SessionEvent, Target, Toasts, join, mosaic};
 
-const PAGE_LIMIT: u32 = 10000;
 const FATAL: [LibraryPart; 3] = [
     LibraryPart::Tracks,
     LibraryPart::Playlists,
@@ -1501,23 +1500,23 @@ impl Library {
             self.fetch(
                 async move {
                     match shape {
-                        Shape::Saved => tracks.saved_tracks(PAGE_LIMIT).await,
-                        Shape::Catalog => tracks.all_tracks(PAGE_LIMIT).await,
+                        Shape::Saved => tracks.saved_tracks().await,
+                        Shape::Catalog => tracks.all_tracks().await,
                     }
                 },
                 move |this, loaded, cx| this.land(shelf, Landed::Tracks(loaded), cx),
                 cx,
             ),
             self.fetch(
-                async move { playlists.playlists(PAGE_LIMIT).await },
+                async move { playlists.playlists().await },
                 move |this, loaded, cx| this.land(shelf, Landed::Playlists(loaded), cx),
                 cx,
             ),
             self.fetch(
                 async move {
                     match shape {
-                        Shape::Saved => albums.saved_albums(PAGE_LIMIT).await,
-                        Shape::Catalog => albums.all_albums(PAGE_LIMIT).await,
+                        Shape::Saved => albums.saved_albums().await,
+                        Shape::Catalog => albums.all_albums().await,
                     }
                 },
                 move |this, loaded, cx| this.land(shelf, Landed::Albums(loaded), cx),
@@ -1526,8 +1525,8 @@ impl Library {
             self.fetch(
                 async move {
                     match shape {
-                        Shape::Saved => artists.saved_artists(PAGE_LIMIT).await,
-                        Shape::Catalog => artists.all_artists(PAGE_LIMIT).await,
+                        Shape::Saved => artists.saved_artists().await,
+                        Shape::Catalog => artists.all_artists().await,
                     }
                 },
                 move |this, loaded, cx| this.land(shelf, Landed::Artists(loaded), cx),
@@ -1539,17 +1538,17 @@ impl Library {
             let albums = client.clone();
             tasks.extend([
                 self.fetch(
-                    async move { tracks.saved_tracks(PAGE_LIMIT).await },
+                    async move { tracks.saved_tracks().await },
                     move |this, loaded, cx| this.land_starred(shelf, Landed::Tracks(loaded), cx),
                     cx,
                 ),
                 self.fetch(
-                    async move { albums.saved_albums(PAGE_LIMIT).await },
+                    async move { albums.saved_albums().await },
                     move |this, loaded, cx| this.land_starred(shelf, Landed::Albums(loaded), cx),
                     cx,
                 ),
                 self.fetch(
-                    async move { client.saved_artists(PAGE_LIMIT).await },
+                    async move { client.saved_artists().await },
                     move |this, loaded, cx| this.land_starred(shelf, Landed::Artists(loaded), cx),
                     cx,
                 ),

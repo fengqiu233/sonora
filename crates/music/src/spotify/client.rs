@@ -79,8 +79,8 @@ impl MusicApi for LibrespotClient {
         artists::images(&self.session, &ids).await
     }
 
-    async fn saved_tracks(&self, limit: u32) -> Result<Vec<Track>> {
-        collection::saved_tracks(&self.session, limit).await
+    async fn saved_tracks(&self) -> Result<Vec<Track>> {
+        collection::saved_tracks(&self.session).await
     }
 
     async fn set_track_saved(&self, track_id: &str, saved: bool) -> Result<()> {
@@ -99,16 +99,16 @@ impl MusicApi for LibrespotClient {
         lyrics::lyrics(&self.session, track_id).await
     }
 
-    async fn saved_albums(&self, limit: u32) -> Result<Vec<Album>> {
-        albums::saved_albums(&self.session, limit).await
+    async fn saved_albums(&self) -> Result<Vec<Album>> {
+        albums::saved_albums(&self.session).await
     }
 
     async fn set_album_saved(&self, album_id: &str, saved: bool) -> Result<()> {
         collection2::set_album_saved(&self.session, album_id, saved).await
     }
 
-    async fn saved_artists(&self, limit: u32) -> Result<Vec<SavedArtist>> {
-        artists::saved_artists(&self.session, limit).await
+    async fn saved_artists(&self) -> Result<Vec<SavedArtist>> {
+        artists::saved_artists(&self.session).await
     }
 
     async fn set_artist_saved(&self, artist_id: &str, saved: bool) -> Result<()> {
@@ -227,11 +227,11 @@ impl MusicApi for LibrespotClient {
         pathfinder::library(&self.session, order).await.map(Some)
     }
 
-    async fn playlists(&self, limit: u32) -> Result<Vec<Playlist>> {
+    async fn playlists(&self) -> Result<Vec<Playlist>> {
         let mut playlists = Vec::new();
         let mut offset = 0;
         let mut seen = HashSet::new();
-        while playlists.len() < limit as usize {
+        loop {
             let body = self
                 .session
                 .spclient()
@@ -250,7 +250,6 @@ impl MusicApi for LibrespotClient {
                 break;
             }
         }
-        playlists.truncate(limit as usize);
 
         let owners = playlists
             .iter()

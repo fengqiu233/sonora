@@ -219,12 +219,11 @@ impl MusicApi for LocalClient {
             .collect())
     }
 
-    async fn saved_tracks(&self, limit: u32) -> Result<Vec<Track>> {
+    async fn saved_tracks(&self) -> Result<Vec<Track>> {
         let starred = self.store.starred(Starred::Tracks)?;
         let scanned = self.scanned.read().unwrap();
         Ok(starred
             .into_iter()
-            .take(limit as usize)
             .filter_map(|(id, added_at)| {
                 let mut track = scanned
                     .tracks
@@ -237,14 +236,9 @@ impl MusicApi for LocalClient {
             .collect())
     }
 
-    async fn all_tracks(&self, limit: u32) -> Result<Vec<Track>> {
+    async fn all_tracks(&self) -> Result<Vec<Track>> {
         let scanned = self.scanned.read().unwrap();
-        Ok(scanned
-            .tracks
-            .iter()
-            .take(limit as usize)
-            .cloned()
-            .collect())
+        Ok(scanned.tracks.clone())
     }
 
     async fn set_track_saved(&self, track_id: &str, saved: bool) -> Result<()> {
@@ -292,12 +286,11 @@ impl MusicApi for LocalClient {
         Ok(None)
     }
 
-    async fn playlists(&self, limit: u32) -> Result<Vec<Playlist>> {
+    async fn playlists(&self) -> Result<Vec<Playlist>> {
         Ok(self
             .store
             .list()?
             .into_iter()
-            .take(limit as usize)
             .map(|stored| {
                 let tracks = self
                     .store
@@ -341,12 +334,11 @@ impl MusicApi for LocalClient {
         self.store.remove(playlist_id, track_id)
     }
 
-    async fn saved_albums(&self, limit: u32) -> Result<Vec<Album>> {
+    async fn saved_albums(&self) -> Result<Vec<Album>> {
         let starred = self.store.starred(Starred::Albums)?;
         let scanned = self.scanned.read().unwrap();
         Ok(starred
             .into_iter()
-            .take(limit as usize)
             .filter_map(|(id, added_at)| {
                 let mut album = scanned
                     .albums
@@ -359,26 +351,20 @@ impl MusicApi for LocalClient {
             .collect())
     }
 
-    async fn all_albums(&self, limit: u32) -> Result<Vec<Album>> {
+    async fn all_albums(&self) -> Result<Vec<Album>> {
         let scanned = self.scanned.read().unwrap();
-        Ok(scanned
-            .albums
-            .iter()
-            .take(limit as usize)
-            .cloned()
-            .collect())
+        Ok(scanned.albums.clone())
     }
 
     async fn set_album_saved(&self, album_id: &str, saved: bool) -> Result<()> {
         self.store.set_starred(Starred::Albums, album_id, saved)
     }
 
-    async fn saved_artists(&self, limit: u32) -> Result<Vec<SavedArtist>> {
+    async fn saved_artists(&self) -> Result<Vec<SavedArtist>> {
         let starred = self.store.starred(Starred::Artists)?;
         let known = self.artists();
         Ok(starred
             .into_iter()
-            .take(limit as usize)
             .filter_map(|(id, added_at)| {
                 let mut artist = known.iter().find(|artist| artist.id == id).cloned()?;
                 artist.added_at = Some(added_at);
@@ -387,10 +373,8 @@ impl MusicApi for LocalClient {
             .collect())
     }
 
-    async fn all_artists(&self, limit: u32) -> Result<Vec<SavedArtist>> {
-        let mut artists = self.artists();
-        artists.truncate(limit as usize);
-        Ok(artists)
+    async fn all_artists(&self) -> Result<Vec<SavedArtist>> {
+        Ok(self.artists())
     }
 
     async fn set_artist_saved(&self, artist_id: &str, saved: bool) -> Result<()> {

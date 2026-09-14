@@ -98,17 +98,15 @@ impl MusicApi for YouTubeClient {
         Ok(images)
     }
 
-    async fn saved_tracks(&self, limit: u32) -> Result<Vec<Track>> {
-        let mut tracks: Vec<Track> = self
+    async fn saved_tracks(&self) -> Result<Vec<Track>> {
+        Ok(self
             .api
             .liked_songs_resolved()
             .await?
             .into_iter()
             .enumerate()
             .map(|(index, track)| wire::track(track, index as u32))
-            .collect();
-        tracks.truncate(limit as usize);
-        Ok(tracks)
+            .collect())
     }
 
     async fn set_track_saved(&self, track_id: &str, saved: bool) -> Result<()> {
@@ -174,8 +172,8 @@ impl MusicApi for YouTubeClient {
         Ok(None)
     }
 
-    async fn playlists(&self, limit: u32) -> Result<Vec<Playlist>> {
-        let mut playlists: Vec<Playlist> = self
+    async fn playlists(&self) -> Result<Vec<Playlist>> {
+        Ok(self
             .api
             .library_playlists()
             .await?
@@ -188,9 +186,7 @@ impl MusicApi for YouTubeClient {
                 }
                 playlist
             })
-            .collect();
-        playlists.truncate(limit as usize);
-        Ok(playlists)
+            .collect())
     }
 
     async fn create_playlist(&self, name: &str) -> Result<String> {
@@ -243,16 +239,14 @@ impl MusicApi for YouTubeClient {
             .await
     }
 
-    async fn saved_albums(&self, limit: u32) -> Result<Vec<Album>> {
-        let mut albums: Vec<Album> = self
+    async fn saved_albums(&self) -> Result<Vec<Album>> {
+        Ok(self
             .api
             .library_albums()
             .await?
             .into_iter()
             .map(wire::album)
-            .collect();
-        albums.truncate(limit as usize);
-        Ok(albums)
+            .collect())
     }
 
     async fn set_album_saved(&self, album_id: &str, saved: bool) -> Result<()> {
@@ -267,8 +261,8 @@ impl MusicApi for YouTubeClient {
             .with_context(|| format!("cannot rate the album {album_id} as {playlist_id}"))
     }
 
-    async fn saved_artists(&self, limit: u32) -> Result<Vec<SavedArtist>> {
-        subscriptions::saved(&self.api, limit).await
+    async fn saved_artists(&self) -> Result<Vec<SavedArtist>> {
+        subscriptions::saved(&self.api).await
     }
 
     async fn set_artist_saved(&self, artist_id: &str, saved: bool) -> Result<()> {
