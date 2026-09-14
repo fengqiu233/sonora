@@ -203,19 +203,29 @@ impl Confirm {
                     let result = io
                         .spawn(async move {
                             let mut failed = 0;
+                            let mut deleted = Vec::new();
                             for id in ids {
-                                if let Err(error) = provider.delete_track_file(&id).await {
-                                    failed += 1;
-                                    log::warn!("local: cannot delete track file {id}: {error:#}");
+                                match provider.delete_track_file(&id).await {
+                                    Ok(()) => deleted.push(id),
+                                    Err(error) => {
+                                        failed += 1;
+                                        log::warn!(
+                                            "local: cannot delete track file {id}: {error:#}"
+                                        );
+                                    }
                                 }
                             }
-                            failed
+                            (failed, deleted)
                         })
                         .await;
 
-                    library.update(cx, |library, cx| library.rescan_local(cx));
+                    if let Ok((_, ref deleted)) = result {
+                        library.update(cx, |library, cx| {
+                            library.hide_local_tracks(deleted, cx)
+                        });
+                    }
                     match result {
-                        Ok(failed) if failed > 0 => {
+                        Ok((failed, _)) if failed > 0 => {
                             cx.update(|cx| {
                                 Toasts::show(Outcome::Failed, "toast-local-delete-failed", cx);
                             });

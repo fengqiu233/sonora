@@ -761,6 +761,31 @@ impl Library {
             .update(cx, |session, cx| session.rescan_local(cx));
     }
 
+    pub fn hide_local_tracks(&mut self, ids: &[String], cx: &mut Context<Self>) {
+        if ids.is_empty() {
+            return;
+        }
+        let removed = {
+            let held = self.held_mut(Shelf::Local);
+            let mut removed = false;
+            if let Some(ready) = held.ready_mut() {
+                let before = ready.tracks.len();
+                ready
+                    .tracks
+                    .retain(|track| !track.id.as_ref().is_some_and(|id| ids.contains(id)));
+                removed |= ready.tracks.len() != before;
+            }
+            let before = held.starred.tracks.len();
+            held.starred
+                .tracks
+                .retain(|track| !track.id.as_ref().is_some_and(|id| ids.contains(id)));
+            removed || held.starred.tracks.len() != before
+        };
+        if removed {
+            cx.notify();
+        }
+    }
+
     pub fn loading(&self, shelf: Shelf, part: LibraryPart) -> bool {
         let held = self.held(shelf);
         matches!(held.state, LibraryState::Loading) || held.awaited.contains(&part)
