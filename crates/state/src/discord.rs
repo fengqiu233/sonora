@@ -454,7 +454,7 @@ fn buttons(
             .and_then(|client| client.share_url(MediaKind::Track, id))
     {
         buttons.push(Button {
-            label: t!("listen-on", provider = provider.name()).to_string(),
+            label: format!("Listen on {}", provider.name()).to_string(),
             url,
         });
     }
