@@ -39,11 +39,11 @@ pub use playback::{Origin, Playback, PlaybackState, Repeat, Sleep, Whence};
 pub use profile::Profile;
 pub use queue::{Named, Queue, Resume, Stub};
 pub use remote::{Remote, attach as attach_remote};
-pub use scrobble::{ScrobbleState, Scrobbler};
+pub use scrobble::{ScrobbleRow, ScrobbleState, Scrobbling};
 pub use search::{AlbumHit, ArtistHit, Hit, Kind, PlaylistHit, Search};
 pub use session::{Failure, ProviderInfo, Session, SessionEvent, SessionState};
 pub use settings::{
-    AppSettings, DiscordName, FullscreenControlsAutohide, Lastfm, RomanizationScripts, SYSTEM_FONT,
+    AppSettings, DiscordName, FullscreenControlsAutohide, RomanizationScripts, SYSTEM_FONT,
     SideTab, remember_window, window_placement,
 };
 pub use song::SongDetail;
@@ -110,7 +110,7 @@ pub struct Sonora {
     pub pins: Entity<Pins>,
     pub playback: Entity<Playback>,
     pub queue: Entity<Queue>,
-    pub scrobbler: Entity<Scrobbler>,
+    pub scrobbling: Entity<Scrobbling>,
     pub settings: Entity<AppSettings>,
     pub updates: Entity<Updates>,
     pub usage: Entity<Usage>,
@@ -151,7 +151,8 @@ pub fn init(
             cx,
         )
     });
-    let scrobbler = cx.new(|cx| Scrobbler::new(playback.clone(), settings.clone(), io.clone(), cx));
+    let scrobbling =
+        cx.new(|cx| Scrobbling::new(playback.clone(), settings.clone(), io.clone(), cx));
     let lyrics = cx.new(|cx| {
         Lyrics::new(
             playback.clone(),
@@ -185,7 +186,7 @@ pub fn init(
         pins,
         playback,
         queue,
-        scrobbler,
+        scrobbling,
         settings,
         updates,
         usage,

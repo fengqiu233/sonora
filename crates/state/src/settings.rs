@@ -5,7 +5,7 @@
 //! `state.sqlite` as [`StateValues`]. [`AppSettings`] holds both and saves each on its own
 //! debounce, so a sidebar drag never rewrites the preferences file.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -19,6 +19,7 @@ use gpui::{
 };
 use music::WritingSystem;
 use music::equalizer::{self, Gains};
+use music::scrobble::Account;
 use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use storage::Database;
@@ -183,22 +184,6 @@ impl Default for RomanizationScripts {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(default)]
-pub struct Lastfm {
-    pub key: String,
-    pub secret: String,
-    pub session: String,
-    pub name: String,
-    pub enabled: bool,
-}
-
-impl Lastfm {
-    fn blank(&self) -> bool {
-        self.key.is_empty() && self.session.is_empty()
-    }
-}
-
 /// A window's saved position and size in logical pixels, plus whether it was maximized.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
@@ -316,8 +301,8 @@ struct Values {
     local_folders: Vec<PathBuf>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     hidden_nav: Vec<String>,
-    #[serde(skip_serializing_if = "Lastfm::blank")]
-    lastfm: Lastfm,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    scrobbling: BTreeMap<String, Account>,
     appearance: Appearance,
 }
 
@@ -394,7 +379,7 @@ impl Default for Values {
             local_folder: None,
             local_folders: Vec::new(),
             hidden_nav: Vec::new(),
-            lastfm: Lastfm::default(),
+            scrobbling: BTreeMap::new(),
             appearance: Appearance::default(),
         }
     }
@@ -722,8 +707,18 @@ impl AppSettings {
         self.values.close_to_tray
     }
 
-    pub fn lastfm(&self) -> &Lastfm {
-        &self.values.lastfm
+    /// Every linked scrobbling account, keyed by its service slug.
+    pub fn scrobbling(&self) -> &BTreeMap<String, Account> {
+        &self.values.scrobbling
+    }
+
+    /// One service's account, blank when it was never linked.
+    pub fn account(&self, service: &str) -> Account {
+        self.values
+            .scrobbling
+            .get(service)
+            .cloned()
+            .unwrap_or_default()
     }
 
     pub fn sidebar_width(&self) -> f32 {
@@ -1044,13 +1039,25 @@ impl AppSettings {
         self.schedule_save(cx);
     }
 
-    pub fn set_lastfm(&mut self, lastfm: Lastfm, cx: &mut Context<Self>) {
-        self.values.lastfm = lastfm;
+    /// Stores a linked account, or forgets the service when the account carries no session.
+    pub fn set_account(&mut self, service: &str, account: Account, cx: &mut Context<Self>) {
+        match account.linked() {
+            true => {
+                self.values.scrobbling.insert(service.to_owned(), account);
+            }
+            false => {
+                self.values.scrobbling.remove(service);
+            }
+        }
         self.schedule_save(cx);
     }
 
-    pub fn set_scrobbling(&mut self, scrobbling: bool, cx: &mut Context<Self>) {
-        self.values.lastfm.enabled = scrobbling;
+    /// Turns submissions to one linked service on or off, leaving the link itself alone.
+    pub fn set_scrobbling(&mut self, service: &str, enabled: bool, cx: &mut Context<Self>) {
+        let Some(account) = self.values.scrobbling.get_mut(service) else {
+            return;
+        };
+        account.enabled = enabled;
         self.schedule_save(cx);
     }
 

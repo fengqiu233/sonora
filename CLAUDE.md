@@ -236,7 +236,7 @@ construction, layout and scene assembly, never GPU fill.
 | Credentials cache | `$XDG_CACHE_HOME/sonora/<provider>/credentials.json`, one per provider slug (`spotify`, `youtube`), owner-only mode                |
 | Local cover cache | `$XDG_CACHE_HOME/sonora/local-covers/`                                                                                             |
 | OAuth redirect    | `http://127.0.0.1:8989/login`, override with `SONORA_REDIRECT_URI`                                                                |
-| Last.fm callback  | `http://127.0.0.1:8990/lastfm`                                                                                                    |
+| Scrobble callback | `http://127.0.0.1:8990/scrobble` (Last.fm and Libre.fm)                                                                           |
 | Instance socket   | `sonora.sock`, `sonora-dev.sock` in debug builds, so `cargo run` starts beside an installed Sonora rather than handing over to it |
 | Log file          | `$XDG_STATE_HOME/sonora/sonora.log`, rotated to `.1` past 8 MiB                                                                   |
 | Console logging   | `RUST_LOG`; default filter `warn,symphonia=error,lofty=error`                                                                     |
@@ -616,7 +616,7 @@ an `Unavailable` track.
 | `Library`                                  | one shelf per live provider; `LibraryState` is `Empty \| Loading \| Ready(Ready) \| Failed` — partial failure is normal, surface `Ready::problems`                        |
 | `Playback`                                 | engine ownership, transport, shuffle/repeat, volume, `Origin` tracking, `toggle_origin`                                                                                    |
 | `Queue`                                    | past / current / upcoming; `start`, `next`, `next_random`, `previous`, `rewind`                                                                                            |
-| `Scrobbler`                                | Last.fm link and scrobbling; follows `Playback`, keys live in `settings.json` under `lastfm`                                                                               |
+| `Scrobbling`                               | one row per `music::scrobble::Service`; follows `Playback` and fans each listen out, accounts live in `settings.json` under `scrobbling`                                   |
 | `Home`, `Detail`, `ArtistDetail`, `Search` | per-screen loaders, each owning its `Task`                                                                                                                                 |
 | `AppSettings`                              | debounced durable settings in JSON and runtime state in SQLite                                                                                                             |
 

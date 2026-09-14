@@ -18,9 +18,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Buttons on the Discord status, under Settings, Discord. Pick Provider to link the track on the
   service it plays from, Sonora to link the project page, or both. Discord shows them to your
   friends only, never to you, and the provider button stays off while Hide details is on.
-- Sonora scrobbles to Last.fm. Connect your account under Settings > General with your own Last.fm
-  API key and secret, and Sonora reports what is playing and scrobbles a track once you are halfway
-  through it. A switch turns scrobbling off without disconnecting the account.
+- Sonora scrobbles to Last.fm, Libre.fm, ListenBrainz and Maloja, under Settings > Integrations.
+  Last.fm asks for your own API key and secret, Libre.fm only for approval in the browser,
+  ListenBrainz for a user token and Maloja for a server address and one of its API keys. Connect as
+  many as you like and every one of them gets the listen once you are halfway through a track. Each
+  has its own switch, which stops submissions without disconnecting the account.
 
 ### Changed
 

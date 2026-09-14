@@ -3,7 +3,6 @@ pub mod binimum;
 pub mod credentials;
 pub mod equalizer;
 pub mod kugou;
-pub mod lastfm;
 #[cfg(test)]
 mod live_tests;
 pub mod local;
@@ -12,6 +11,7 @@ pub mod lyrics;
 mod models;
 pub mod musixmatch;
 pub mod netease;
+pub mod scrobble;
 mod sink;
 mod spectrum;
 pub mod spotify;

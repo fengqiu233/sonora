@@ -1,18 +1,23 @@
-use std::sync::Arc;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+//! Scrobbling
+//!
+//! One entity drives every service at once. [`Scrobbling`] holds a [`ScrobbleRow`] per service, follows
+//! [`Playback`] and fans the same listen out to whichever rows are linked and turned on.
 
-use gpui::{App, Context, Entity, SharedString, Task};
+use std::sync::Arc;
+use std::time::SystemTime;
+
+use gpui::{Context, Entity, SharedString, Task};
 use music::Track;
-use music::lastfm::{self, Play};
+use music::scrobble::{self, Account, Link, Play, Secret, Service};
 use tokio::task::AbortHandle;
 
 use crate::playback::PlaybackEvent;
-use crate::settings::Lastfm;
 use crate::{AppSettings, Io, Playback, PlaybackState, join};
 
-const WAIT: Duration = Duration::from_secs(300);
-const FAILED: &str = "settings-lastfm-failed";
+/// What the settings row says when a link did not go through. The failure itself is in the log.
+const FAILED: &str = "settings-scrobble-failed";
 
+/// One service's link as the settings screen sees it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ScrobbleState {
     Off,
@@ -21,21 +26,61 @@ pub enum ScrobbleState {
     Failed(&'static str),
 }
 
-pub struct Scrobbler {
+/// A service, its link and the sender that link produced.
+pub struct ScrobbleRow {
+    service: Arc<dyn Service>,
+    scrobbler: Option<Arc<dyn scrobble::Scrobbler>>,
+    state: ScrobbleState,
+    enabled: bool,
+    /// Whether the current play has already gone to this service. Per row, so one service being
+    /// down never costs another its listen.
+    sent: bool,
+}
+
+impl ScrobbleRow {
+    pub fn id(&self) -> &'static str {
+        self.service.id()
+    }
+
+    pub fn link(&self) -> Link {
+        self.service.link()
+    }
+
+    pub fn signup(&self) -> Option<&'static str> {
+        self.service.signup()
+    }
+
+    pub fn state(&self) -> &ScrobbleState {
+        &self.state
+    }
+
+    pub fn linked(&self) -> bool {
+        matches!(self.state, ScrobbleState::On(_))
+    }
+
+    pub fn linking(&self) -> bool {
+        matches!(self.state, ScrobbleState::Linking)
+    }
+
+    /// Whether listens are being submitted. A linked service the user switched off stays linked.
+    pub fn enabled(&self) -> bool {
+        self.enabled
+    }
+}
+
+pub struct Scrobbling {
     playback: Entity<Playback>,
     settings: Entity<AppSettings>,
     io: Io,
-    client: Option<Arc<lastfm::Scrobbler>>,
-    state: ScrobbleState,
+    rows: Vec<ScrobbleRow>,
     play: Option<Play>,
     current: Option<String>,
-    started: i64,
-    scrobbled: bool,
+    started: SystemTime,
     link: Option<Task<()>>,
     waiting: Option<AbortHandle>,
 }
 
-impl Scrobbler {
+impl Scrobbling {
     pub fn new(
         playback: Entity<Playback>,
         settings: Entity<AppSettings>,
@@ -49,81 +94,76 @@ impl Scrobbler {
         .detach();
         cx.observe(&playback, |this, _, cx| this.tick(cx)).detach();
 
-        let mut scrobbler = Self {
+        let rows = scrobble::services()
+            .into_iter()
+            .map(|service| ScrobbleRow {
+                service,
+                scrobbler: None,
+                state: ScrobbleState::Off,
+                enabled: false,
+                sent: false,
+            })
+            .collect();
+
+        let mut scrobbling = Self {
             playback,
             settings,
             io,
-            client: None,
-            state: ScrobbleState::Off,
+            rows,
             play: None,
             current: None,
-            started: 0,
-            scrobbled: false,
+            started: SystemTime::now(),
             link: None,
             waiting: None,
         };
-        scrobbler.rebuild(cx);
-        scrobbler
+        scrobbling.rebuild(cx);
+        scrobbling
     }
 
-    pub fn state(&self) -> &ScrobbleState {
-        &self.state
+    pub fn rows(&self) -> &[ScrobbleRow] {
+        &self.rows
     }
 
-    pub fn linked(&self) -> bool {
-        matches!(self.state, ScrobbleState::On(_))
-    }
-
-    pub fn enabled(&self, cx: &App) -> bool {
-        self.settings.read(cx).lastfm().enabled
-    }
-
-    pub fn set_enabled(&mut self, enabled: bool, cx: &mut Context<Self>) {
-        self.settings
-            .update(cx, |settings, cx| settings.set_scrobbling(enabled, cx));
+    /// Turns submissions to one service on or off. The link survives either way.
+    pub fn set_enabled(&mut self, service: &str, enabled: bool, cx: &mut Context<Self>) {
+        self.settings.update(cx, |settings, cx| {
+            settings.set_scrobbling(service, enabled, cx)
+        });
         self.rebuild(cx);
     }
 
-    pub fn link(&mut self, key: String, secret: String, cx: &mut Context<Self>) {
-        let (key, secret) = (key.trim().to_owned(), secret.trim().to_owned());
-        if key.is_empty() || secret.is_empty() {
-            self.state = ScrobbleState::Failed(FAILED);
-            return cx.notify();
-        }
+    /// Runs one service's link. A `Link::Browser` or `Link::Keys` service opens the browser from
+    /// inside the task, so the row sits in `Linking` until the user comes back or the wait ends.
+    pub fn connect(&mut self, service: &str, secret: Secret, cx: &mut Context<Self>) {
+        let Some(index) = self.rows.iter().position(|row| row.id() == service) else {
+            return;
+        };
 
-        self.stop_waiting();
-        cx.open_url(&lastfm::authorize_url(&key));
-        self.state = ScrobbleState::Linking;
+        self.stop();
+        let service = self.rows[index].service.clone();
+        self.rows[index].state = ScrobbleState::Linking;
         cx.notify();
 
-        let waiting = self.io.spawn(async move {
-            let token = lastfm::token(WAIT).await?;
-            let (session, name) = lastfm::session(&key, &secret, &token).await?;
-            Ok(Lastfm {
-                key,
-                secret,
-                session,
-                name,
-                enabled: true,
-            })
-        });
-        self.waiting = Some(waiting.abort_handle());
+        let connecting = self.io.spawn(async move { service.connect(secret).await });
+        self.waiting = Some(connecting.abort_handle());
 
         self.link = Some(cx.spawn(async move |this, cx| {
-            let linked = join(waiting).await;
+            let linked = join(connecting).await;
 
             this.update(cx, |this, cx| {
                 this.link = None;
                 this.waiting = None;
                 match linked {
                     Ok(account) => {
+                        let id = this.rows[index].id();
+                        this.rows[index].state = ScrobbleState::Off;
                         this.settings
-                            .update(cx, |settings, cx| settings.set_lastfm(account, cx));
+                            .update(cx, |settings, cx| settings.set_account(id, account, cx));
                         this.rebuild(cx);
                     }
                     Err(error) => {
-                        log::warn!("scrobble: cannot link last.fm: {error:#}");
-                        this.state = ScrobbleState::Failed(FAILED);
+                        log::warn!("scrobble: cannot link {}: {error:#}", this.rows[index].id());
+                        this.rows[index].state = ScrobbleState::Failed(FAILED);
                     }
                 }
                 cx.notify();
@@ -132,75 +172,110 @@ impl Scrobbler {
         }));
     }
 
-    pub fn unlink(&mut self, cx: &mut Context<Self>) {
-        self.stop_waiting();
+    /// Forgets one service's account. A link still running is dropped first.
+    pub fn disconnect(&mut self, service: &str, cx: &mut Context<Self>) {
+        self.stop();
         self.settings.update(cx, |settings, cx| {
-            settings.set_lastfm(Lastfm::default(), cx)
+            settings.set_account(service, Account::default(), cx)
         });
         self.rebuild(cx);
     }
 
-    fn stop_waiting(&mut self) {
+    /// Gives up on a link that is still waiting, so the user is not stuck watching a browser tab
+    /// they already closed. The row falls back to whatever is stored for it.
+    pub fn cancel(&mut self, cx: &mut Context<Self>) {
+        self.stop();
+        for row in &mut self.rows {
+            if row.linking() {
+                row.state = ScrobbleState::Off;
+            }
+        }
+        self.rebuild(cx);
+    }
+
+    /// Drops the running link and its task. The task owns the callback listener, so this frees
+    /// the port too.
+    fn stop(&mut self) {
         self.link = None;
         if let Some(waiting) = self.waiting.take() {
             waiting.abort();
         }
     }
 
+    /// Rereads every stored account and rebuilds the senders. A row in the middle of a link keeps
+    /// its state, so turning another service off cannot wipe the one the user is waiting on.
     fn rebuild(&mut self, cx: &mut Context<Self>) {
-        let account = self.settings.read(cx).lastfm().clone();
-        self.client = (account.enabled && !account.session.is_empty()).then(|| {
-            Arc::new(lastfm::Scrobbler::new(
-                &account.key,
-                &account.secret,
-                &account.session,
-            ))
-        });
-        self.state = match account.session.is_empty() {
-            true => ScrobbleState::Off,
-            false => ScrobbleState::On(SharedString::from(account.name)),
-        };
+        let accounts = self.settings.read(cx).scrobbling().clone();
+
+        for row in &mut self.rows {
+            let account = accounts.get(row.id()).cloned().unwrap_or_default();
+            row.enabled = account.enabled;
+            row.scrobbler = match account.linked() && account.enabled {
+                true => match row.service.scrobbler(&account) {
+                    Ok(scrobbler) => Some(scrobbler),
+                    Err(error) => {
+                        log::warn!("scrobble: cannot use {}: {error:#}", row.id());
+                        None
+                    }
+                },
+                false => None,
+            };
+            if row.linking() {
+                continue;
+            }
+            row.state = match account.linked() {
+                true => ScrobbleState::On(SharedString::from(account.name)),
+                false => ScrobbleState::Off,
+            };
+        }
         cx.notify();
     }
 
+    /// Starts a play and reports it to every live service. A pause and resume of the same track
+    /// keeps the original start time, so the listen is timed from when it really began.
     fn begin(&mut self, cx: &mut Context<Self>) {
         let Some(track) = self.playback.read(cx).track() else {
-            return;
-        };
-        let Some(play) = played(track) else {
             return;
         };
         let resumed = track.id.is_some() && self.current == track.id;
         if !resumed {
             self.current = track.id.clone();
-            self.started = now();
-            self.scrobbled = false;
+            self.started = SystemTime::now();
+            for row in &mut self.rows {
+                row.sent = false;
+            }
         }
-        self.play = Some(play.clone());
-
-        let Some(client) = self.client.clone() else {
+        self.play = played(track, self.started);
+        let Some(play) = self.play.clone() else {
             return;
         };
-        self.io.spawn(async move {
-            if let Err(error) = client.now_playing(&play).await {
-                log::warn!("scrobble: cannot report the current track: {error:#}");
-            }
-        });
+
+        for row in &self.rows {
+            let Some(scrobbler) = row.scrobbler.clone() else {
+                continue;
+            };
+            let play = play.clone();
+            self.io.spawn(async move {
+                if let Err(error) = scrobbler.now_playing(&play).await {
+                    log::warn!(
+                        "scrobble: cannot report the current track to {}: {error:#}",
+                        scrobbler.id()
+                    );
+                }
+            });
+        }
     }
 
     fn end(&mut self) {
         self.play = None;
         self.current = None;
-        self.scrobbled = false;
+        for row in &mut self.rows {
+            row.sent = false;
+        }
     }
 
+    /// Submits the play to every service that has not had it yet, once it has run long enough.
     fn tick(&mut self, cx: &mut Context<Self>) {
-        if self.scrobbled {
-            return;
-        }
-        let Some(client) = self.client.clone() else {
-            return;
-        };
         let Some(play) = self.play.clone() else {
             return;
         };
@@ -208,18 +283,31 @@ impl Scrobbler {
         if *playback.state() != PlaybackState::Playing || !play.earned(playback.position()) {
             return;
         }
-        self.scrobbled = true;
 
-        let at = self.started;
-        self.io.spawn(async move {
-            if let Err(error) = client.scrobble(&play, at).await {
-                log::warn!("scrobble: cannot scrobble the track: {error:#}");
+        for row in &mut self.rows {
+            if row.sent {
+                continue;
             }
-        });
+            let Some(scrobbler) = row.scrobbler.clone() else {
+                continue;
+            };
+            row.sent = true;
+
+            let play = play.clone();
+            self.io.spawn(async move {
+                if let Err(error) = scrobbler.scrobble(std::slice::from_ref(&play)).await {
+                    log::warn!(
+                        "scrobble: cannot submit the track to {}: {error:#}",
+                        scrobbler.id()
+                    );
+                }
+            });
+        }
     }
 }
 
-fn played(track: &Track) -> Option<Play> {
+/// Turns a track into a listen. A track with no artist or no title is not submittable anywhere.
+fn played(track: &Track, at: SystemTime) -> Option<Play> {
     let artist = track
         .artist_refs
         .first()
@@ -234,13 +322,6 @@ fn played(track: &Track) -> Option<Play> {
         title: track.name.clone(),
         album: Some(track.album.clone()).filter(|album| !album.is_empty()),
         duration: track.duration,
+        at,
     })
-}
-
-fn now() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
-        .min(i64::MAX as u64) as i64
 }
