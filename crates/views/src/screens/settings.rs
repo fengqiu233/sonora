@@ -246,8 +246,6 @@ impl SettingsView {
                 Row::Item(self.tray_row(cx).into_any_element()),
                 self.title("settings-group-accounts", cx),
                 Row::Item(self.accounts_row(cx).into_any_element()),
-                self.title("settings-group-scrobbling", cx),
-                Row::Item(self.lastfm_row(cx).into_any_element()),
                 self.title("settings-group-library", cx),
                 Row::Item(self.local_folder_row(cx).into_any_element()),
             ],
@@ -303,7 +301,14 @@ impl SettingsView {
                 self.title("settings-group-lyrics", cx),
                 Row::Item(self.lyrics_for_local_files_row(cx).into_any_element()),
             ],
-            SettingsTab::Integrations => self.discord_rows(cx),
+            SettingsTab::Integrations => self
+                .discord_rows(cx)
+                .into_iter()
+                .chain([
+                    self.title("settings-group-scrobbling", cx),
+                    Row::Item(self.lastfm_row(cx).into_any_element()),
+                ])
+                .collect(),
             SettingsTab::About => vec![
                 Row::Item(self.version_row(cx).into_any_element()),
                 Row::Item(self.updates_row(cx).into_any_element()),
