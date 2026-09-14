@@ -9,6 +9,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Sonora is published as an AppImage for `x86_64` and `aarch64`, beside the Flatpak and the
+  plain binaries. Make it executable and run it; it needs no installation and stays a single
+  file, but it does not update itself.
 - On Windows, hovering Sonora's taskbar button puts previous, play/pause and next under the
   thumbnail preview, so a track can be paused or skipped without raising the window. The glyphs
   follow the icon pack chosen under Settings > Appearance.

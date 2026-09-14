@@ -89,6 +89,21 @@ Add the Sonora repository (updates with `flatpak update`):
 flatpak install --user https://sonorahq.github.io/sonora/sonora.flatpakref
 ```
 
+#### AppImage
+
+Download the `x86_64` AppImage from the
+[latest release](https://github.com/sonorahq/sonora/releases/latest), make it executable and run
+it:
+
+```sh
+chmod +x sonora-*.AppImage
+./sonora-*.AppImage
+```
+
+An `aarch64` build is published beside it. The AppImage carries no Vulkan driver and no ALSA
+bridge, so both still come from your system, and it does not update itself — download a newer one
+over it.
+
 ### Nix
 
 The flake packages the latest tagged release binary or builds from source if unavailable for your platform.
