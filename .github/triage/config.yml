@@ -1,27 +1,33 @@
 # What the triage bot is allowed to do. It may only ever pick a label or a person named
 # here, and .github/triage/triage.sh drops anything else the model invents.
 #
+# The labels name parts of the app rather than crates. Every change touches views and state
+# whatever it is about, so a label for those would mark everything and sort nothing.
+#
 # A person with an empty `areas` list is never assigned. Fill in areas and hardware to put
 # someone into the rotation, and remember that GitHub refuses to assign a non-collaborator.
 
 labels:
   bug: something that used to work, or clearly should, does not
   enhancement: a request for behaviour Sonora does not have yet
-  documentation: the README, the changelog or an in-app string reads wrong
+  documentation: the README, contributing guide or privacy notice reads wrong
   question: the reporter wants to know how something works rather than reporting a defect
-  ui: rendering, layout, theming, icons, fonts, the window itself
-  views: a specific screen, the sidebars, the player bar, tables, navigation
-  state: settings, persistence, state.sqlite, the library cache, startup migration
   playback: audio output, stutter, gaps, seeking, volume, the equalizer, device switching
+  player: the player bar, the queue, transport controls, fullscreen, media keys, rich presence
+  lyrics: lyric fetching, timing, the lyrics view, any lyrics provider
+  library: playlists, albums, artists, history, pinned lists and the browsing screens
+  search: the search field and what it returns
+  settings: the settings screen, stored preferences, the updater
+  ui: rendering, layout, theming, fonts, the window and its chrome
   spotify: signing in to Spotify, its library, its search, or anything its backend returns
   youtube: signing in to YouTube Music, its library, its search, or its backend
   subsonic: a Subsonic or Navidrome server
   local: the local music folder, scanning, tags, embedded artwork, local playlists
-  lyrics: lyric fetching, timing, the lyrics view, any lyrics provider
-  i18n: a translation, a missing string, a wrong plural, locale selection
+  i18n: a translation, a missing string, a wrong plural or locale selection, and nothing else
+  icons: the icon packs
   webview: the cookie sign-in browser window
   nix: the flake, the devShell, building under Nix
-  packaging: Flatpak, AUR, Homebrew, the macOS disk image, the Windows installer, updates
+  packaging: Flatpak, AUR, Homebrew, the disk image, the Windows installer, updates
   ci: the release workflow or anything else under .github
 
 platforms:
@@ -31,24 +37,24 @@ platforms:
 
 people:
   nolight132:
-    areas: [ui, views, state, playback, spotify, local, lyrics, nix, packaging, ci, i18n]
-    hardware: [linux, wayland, amd-vulkan, pipewire]
+    areas: [ui, library, player, playback, search, settings, spotify, local, lyrics, nix, packaging, ci]
+    hardware: [linux, wayland, niri, amd-vulkan, pipewire]
 
   zxsleebu:
-    areas: []
-    hardware: []
+    areas: [ui, library, player, lyrics]
+    hardware: [linux, wayland, kde]
 
   imizgun:
-    areas: []
-    hardware: []
+    areas: [local, library, playback, ui]
+    hardware: [linux, wayland, niri, pipewire]
 
   fx-got:
-    areas: []
-    hardware: []
+    areas: [youtube, spotify, library, player, settings, ui]
+    hardware: [windows]
 
   Makakashan:
-    areas: []
-    hardware: []
+    areas: [i18n, lyrics, player, packaging, nix]
+    hardware: [linux, wayland, niri, pipewire]
 
 # What a report has to contain before anyone can act on it. The bot asks for whichever of
 # these is missing, once, and labels the issue needs-info until it arrives.
