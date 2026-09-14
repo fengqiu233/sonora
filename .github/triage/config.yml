@@ -1,0 +1,62 @@
+# What the triage bot is allowed to do. It may only ever pick a label or a person named
+# here, and .github/triage/triage.sh drops anything else the model invents.
+#
+# A person with an empty `areas` list is never assigned. Fill in areas and hardware to put
+# someone into the rotation, and remember that GitHub refuses to assign a non-collaborator.
+
+labels:
+  bug: something that used to work, or clearly should, does not
+  enhancement: a request for behaviour Sonora does not have yet
+  documentation: the README, the changelog or an in-app string reads wrong
+  question: the reporter wants to know how something works rather than reporting a defect
+  ui: rendering, layout, theming, icons, fonts, the window itself
+  views: a specific screen, the sidebars, the player bar, tables, navigation
+  state: settings, persistence, state.sqlite, the library cache, startup migration
+  playback: audio output, stutter, gaps, seeking, volume, the equalizer, device switching
+  spotify: signing in to Spotify, its library, its search, or anything its backend returns
+  youtube: signing in to YouTube Music, its library, its search, or its backend
+  subsonic: a Subsonic or Navidrome server
+  local: the local music folder, scanning, tags, embedded artwork, local playlists
+  lyrics: lyric fetching, timing, the lyrics view, any lyrics provider
+  i18n: a translation, a missing string, a wrong plural, locale selection
+  webview: the cookie sign-in browser window
+  nix: the flake, the devShell, building under Nix
+  packaging: Flatpak, AUR, Homebrew, the macOS disk image, the Windows installer, updates
+  ci: the release workflow or anything else under .github
+
+platforms:
+  linux: reproduces on Linux, or is specific to Wayland, X11, PipeWire or a Mesa driver
+  macos: reproduces on macOS, or is specific to AppKit, Gatekeeper or the disk image
+  windows: reproduces on Windows, or is specific to WebView2, MSVC or the installer
+
+people:
+  nolight132:
+    areas: [ui, views, state, playback, spotify, local, lyrics, nix, packaging, ci, i18n]
+    hardware: [linux, wayland, amd-vulkan, pipewire]
+
+  zxsleebu:
+    areas: []
+    hardware: []
+
+  imizgun:
+    areas: []
+    hardware: []
+
+  fx-got:
+    areas: []
+    hardware: []
+
+  Makakashan:
+    areas: []
+    hardware: []
+
+# What a report has to contain before anyone can act on it. The bot asks for whichever of
+# these is missing, once, and labels the issue needs-info until it arrives.
+required:
+  - a Sonora version
+  - how Sonora was installed
+  - the operating system, and on Linux whether the session is Wayland or X11
+  - enough steps for someone else to reproduce it
+  - a log excerpt from sonora.log covering the failure, for a crash, a hang, a sign-in
+    problem or anything audio related
+  - the GPU and its Vulkan driver, for anything visual

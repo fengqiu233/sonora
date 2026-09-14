@@ -1,0 +1,104 @@
+# Area labels for a pull request, derived from the paths it touches. The workflow runs with
+# sync-labels, so every label named in this file is owned by the machine: adding one by hand
+# survives only until the next push. Use a label that is not in this file, like a priority or
+# help wanted, when a human needs to mark something.
+
+ui:
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/ui/**
+          - crates/input/**
+
+views:
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/views/**
+          - crates/router/**
+
+state:
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/state/**
+          - crates/storage/**
+
+playback:
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/music/src/audio.rs
+          - crates/music/src/sink.rs
+          - crates/music/src/equalizer.rs
+          - crates/music/src/spectrum.rs
+          - crates/music/src/spotify/playback.rs
+          - crates/music/src/spotify/sink.rs
+
+spotify:
+  - changed-files:
+      - any-glob-to-any-file: crates/music/src/spotify/**
+
+youtube:
+  - changed-files:
+      - any-glob-to-any-file: crates/music/src/youtube/**
+
+subsonic:
+  - changed-files:
+      - any-glob-to-any-file: crates/music/src/subsonic/**
+
+local:
+  - changed-files:
+      - any-glob-to-any-file: crates/music/src/local/**
+
+lyrics:
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/music/src/lyrics/**
+          - crates/music/src/lrclib/**
+          - crates/music/src/musixmatch/**
+          - crates/music/src/binimum/**
+          - crates/music/src/kugou/**
+          - crates/music/src/netease/**
+
+i18n:
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/i18n/**
+          - assets/i18n/**
+          - scripts/i18n-coverage.py
+
+icons:
+  - changed-files:
+      - any-glob-to-any-file:
+          - crates/icons/**
+          - assets/icons/**
+          - scripts/fetch-icons.py
+
+webview:
+  - changed-files:
+      - any-glob-to-any-file: crates/webview/**
+
+nix:
+  - changed-files:
+      - any-glob-to-any-file:
+          - flake.nix
+          - flake.lock
+          - .envrc
+
+packaging:
+  - changed-files:
+      - any-glob-to-any-file:
+          - flatpak/**
+          - scripts/windows/**
+          - scripts/generate-icons.py
+          - scripts/generate-notices.py
+          - assets/linux/**
+          - assets/macos/**
+          - assets/windows/**
+          - assets/tray/**
+          - about.toml
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: .github/**
+
+documentation:
+  - changed-files:
+      - any-glob-to-any-file: "**/*.md"

@@ -812,6 +812,33 @@ distributing unlicensed code.
 - Dependencies go in the root `[workspace.dependencies]`, then `dep.workspace = true` in the crate.
   `gpui`/`gpui_platform` are pinned to one git rev — bump both together or the build breaks.
 
+## Issue triage
+
+A new issue is labelled, routed and checked for missing context by `.github/workflows/triage.yml`,
+which runs `.github/triage/triage.sh` against any OpenAI compatible endpoint. The model only ever
+answers with JSON. The script does every GitHub write, and it drops any label, platform or person
+that `.github/triage/config.yml` does not name, so a bad answer can at worst pick the wrong label
+off a fixed list. Adding an area means adding it to that config, to `.github/labeler.yml` and to the
+repository's labels, all three.
+
+Comments, labels and closes come from the Sonora Buddy GitHub App, so the timeline carries its
+name and the Sonora icon rather than github-actions. `SONORA_BUDDY_APP_ID` is a repository
+variable and `SONORA_BUDDY_KEY` holds its private key. Both are optional: with the variable
+unset every workflow falls back to `GITHUB_TOKEN` and behaves the same, signed by Actions.
+
+`TRIAGE_API_KEY` holds the inference key. Setting the `TRIAGE_BASE_URL` or `TRIAGE_MODEL` repository
+variable overrides the endpoint or the model without a commit. Run a decision locally without
+touching the issue:
+
+```sh
+ISSUE=612 REPO=sonorahq/sonora DRY_RUN=1 TRIAGE_API_KEY=… .github/triage/triage.sh
+```
+
+A report that is missing something gets one comment asking for it and the `needs-info` label, which
+`stale.yml` closes on after 17 days. The same workflow re-runs when the reporter comments, and takes
+the label off once the report is complete, so the clock only runs while the ball is in their court.
+Pull requests get path labels from `actions/labeler` and are never closed as stale.
+
 ## Commits
 
 Conventional Commits: `type(scope): description`, imperative, lowercase, no trailing period, no body.
