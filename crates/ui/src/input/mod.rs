@@ -255,6 +255,13 @@ impl Input {
         cx.notify();
     }
 
+    /// Draws the content as dots, or stops. Offsets stay content offsets either way, so the
+    /// caret and the selection survive the flip.
+    pub fn set_masked(&mut self, masked: bool, cx: &mut Context<Self>) {
+        self.masked = masked;
+        cx.notify();
+    }
+
     fn placeholder(&self) -> SharedString {
         match self.hint.is_empty() {
             true => SharedString::default(),
