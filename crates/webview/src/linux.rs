@@ -30,6 +30,9 @@ const LIBRARIES: [&str; 2] = ["libwebkit2gtk-4.1.so.0\0", "libwebkit2gtk-4.0.so.
 const TICK: c_uint = 50;
 /// How long a window waits for the GTK thread to reach a display before giving up on it.
 const SETUP: Duration = Duration::from_secs(5);
+/// Where the kernel lists every GPU with a link to the driver bound to it. One of the sysfs
+/// subtrees a Flatpak sandbox shares, unlike `/sys/module` or `/proc/driver`.
+const DRM: &str = "/sys/class/drm";
 
 /// Firefox on Linux. WebKitGTK's own agent claims Safari on X11, a browser that does not exist,
 /// and Google answers a browser it cannot place with "this browser may not be secure".
@@ -492,6 +495,15 @@ fn run(api: &'static Api, host: &'static Host) {
     // XWayland otherwise, so the sign-in window never depends on an XWayland being present. A
     // GDK_BACKEND in the environment outranks this list, which is fine: either name works.
     unsafe { (api.gdk_set_allowed_backends)(c"wayland,x11".as_ptr()) };
+    // WebKit's DMA-BUF renderer hands the compositor buffers the NVIDIA driver allocates, and
+    // the compositor answers with a protocol error that takes the whole process down. WebKit
+    // upstream declined to detect the driver itself (bug 262607), so every embedder does. Shared
+    // memory is slower and only ever paints a sign-in page. A value the user exported wins.
+    // SAFETY: nothing else in the process reads this variable, and no other thread is in GTK yet.
+    if nvidia() && std::env::var_os("WEBKIT_DISABLE_DMABUF_RENDERER").is_none() {
+        log::debug!("webview: nvidia driver loaded, disabling the dmabuf renderer");
+        unsafe { std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1") };
+    }
     // gtk_init would otherwise move the whole process onto the user's locale.
     unsafe { (api.gtk_disable_setlocale)() };
     if unsafe { (api.gtk_init_check)(ptr::null_mut(), ptr::null_mut()) } == 0 {
@@ -609,6 +621,19 @@ unsafe fn read(api: &'static Api, list: *mut Node) -> Vec<Cookie> {
         node = unsafe { (*node).next };
     }
     cookies
+}
+
+/// Whether any GPU is bound to the NVIDIA driver, proprietary or open. Nouveau binds under its
+/// own name and is not counted. A sysfs that cannot be read answers false, so a stripped
+/// container keeps the accelerated path rather than losing the window.
+fn nvidia() -> bool {
+    let Ok(cards) = std::fs::read_dir(DRM) else {
+        return false;
+    };
+    cards
+        .flatten()
+        .filter_map(|card| std::fs::read_link(card.path().join("device/driver")).ok())
+        .any(|driver| driver.file_name().is_some_and(|name| name == "nvidia"))
 }
 
 /// Copies a borrowed C string. The caller keeps nothing of the original.

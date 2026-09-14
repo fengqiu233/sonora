@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- On Linux with an NVIDIA GPU, clicking Sign in on YouTube Music under Wayland closed Sonora with
+  a Wayland protocol error. The sign-in window now paints through shared memory on that driver,
+  the same as setting `WEBKIT_DISABLE_DMABUF_RENDERER=1` by hand. A value you export yourself is
+  left alone.
+
 ## [0.35.0] - 2026-09-14
 
 ### Added
