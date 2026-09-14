@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.36.0] - 2026-09-15
+
 ### Added
 
 - Sonora is published as an AppImage for `x86_64` and `aarch64`, beside the Flatpak and the
@@ -1588,7 +1590,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Initial release: a native Spotify client with playback, an interactive queue, the saved library,
 search, album, playlist, artist and song pages, context menus and adaptive theming.
 
-[unreleased]: https://github.com/sonorahq/sonora/compare/v0.35.0...HEAD
+[unreleased]: https://github.com/sonorahq/sonora/compare/v0.36.0...HEAD
+[0.36.0]: https://github.com/sonorahq/sonora/compare/v0.35.0...v0.36.0
 [0.35.0]: https://github.com/sonorahq/sonora/compare/v0.34.4...v0.35.0
 [0.34.4]: https://github.com/sonorahq/sonora/compare/v0.34.3...v0.34.4
 [0.34.3]: https://github.com/sonorahq/sonora/compare/v0.34.2...v0.34.3
