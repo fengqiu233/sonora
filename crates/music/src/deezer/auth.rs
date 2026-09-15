@@ -43,7 +43,7 @@ pub fn arl(input: &str) -> Result<String> {
     bail!("the cookies carry no arl; sign in to deezer.com first");
 }
 
-/// An arl is a lowercase hex token, around 192 characters.
+/// An arl is a hex token in either case, around 192 characters.
 fn valid(value: &str) -> bool {
     value.len() >= 32 && value.bytes().all(|byte| byte.is_ascii_hexdigit())
 }
