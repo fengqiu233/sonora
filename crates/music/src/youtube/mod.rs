@@ -321,6 +321,7 @@ impl MusicProvider for YouTubeProvider {
             landing: LANDING,
             domain: COOKIE_DOMAIN,
             proof: auth::PROOF,
+            agent: None,
         })
     }
 }

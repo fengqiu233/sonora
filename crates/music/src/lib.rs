@@ -1,6 +1,7 @@
 mod audio;
 pub mod binimum;
 pub mod credentials;
+pub mod deezer;
 pub mod equalizer;
 pub mod kugou;
 #[cfg(test)]
@@ -393,6 +394,11 @@ pub struct WebSignIn {
     pub landing: &'static str,
     pub domain: &'static str,
     pub proof: &'static [&'static str],
+    /// A user agent the window presents instead of its default. Some providers' anti-bot
+    /// checks reject an agent that does not match the engine behind it (a Firefox string on a
+    /// WebKit window); the string must match what the backend's engine would say. Backends
+    /// whose default is already engine-consistent may ignore it.
+    pub agent: Option<&'static str>,
 }
 
 #[async_trait]

@@ -50,6 +50,9 @@ pub struct Target {
     pub domain: String,
     pub proof: Vec<String>,
     pub title: String,
+    /// A user agent the window presents instead of the backend's default, when the provider
+    /// needs one that matches the engine the backend drives.
+    pub agent: Option<String>,
 }
 
 /// One cookie as the page holds it. `domain` keeps the leading dot when the browser stored one.

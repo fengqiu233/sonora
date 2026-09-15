@@ -485,6 +485,7 @@ impl Session {
             domain: sign_in.domain.to_string(),
             proof: sign_in.proof.iter().map(ToString::to_string).collect(),
             title: t!("login-window-title", provider = provider.name()).to_string(),
+            agent: sign_in.agent.map(str::to_owned),
         };
         match webview::Login::open(target) {
             Ok(login) => self.window = Some(login),
