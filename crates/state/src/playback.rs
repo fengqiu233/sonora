@@ -1020,6 +1020,19 @@ impl Playback {
         self.follow_queue(start, cx);
     }
 
+    /// Removing tracks from queue
+    pub fn remove_from_queue(&mut self, ids: &[String], cx: &mut Context<Self>) {
+        let current_removed = self
+            .queue
+            .update(cx, |queue, cx| queue.remove_tracks(ids, cx));
+        if !current_removed {
+            return;
+        }
+        self.pause(cx);
+        self.track = None;
+        self.next(cx);
+    }
+
     /// Notes a skip and says whether it is part of a burst, which loads only once the skipping
     /// stops.
     fn burst(&mut self) -> Start {

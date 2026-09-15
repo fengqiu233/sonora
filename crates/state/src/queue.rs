@@ -435,6 +435,26 @@ impl Queue {
             .collect()
     }
 
+    pub fn remove_tracks(&mut self, ids: &[String], cx: &mut Context<Self>) -> bool {
+        if ids.is_empty() {
+            return false;
+        }
+        let matches = |track: &Track| track.id.as_ref().is_some_and(|id| ids.contains(id));
+        let current_removed = self.current.as_ref().is_some_and(matches);
+        let before = self.past.len() + usize::from(self.current.is_some()) + self.upcoming.len();
+        self.past.retain(|track| !matches(track));
+        if current_removed {
+            self.current = None;
+        }
+        self.upcoming.retain(|track| !matches(track));
+        self.source.retain(|track| !matches(track));
+        let after = self.past.len() + usize::from(self.current.is_some()) + self.upcoming.len();
+        if current_removed || before != after {
+            self.changed(cx);
+        }
+        current_removed
+    }
+
     pub fn len(&self) -> usize {
         self.upcoming.len()
     }

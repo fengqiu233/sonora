@@ -198,6 +198,7 @@ impl Confirm {
                     return;
                 };
                 let library = sonora.library.clone();
+                let playback = sonora.playback.clone();
                 let io = Io::global(cx);
                 cx.spawn(async move |cx| {
                     let result = io
@@ -223,6 +224,8 @@ impl Confirm {
                         library.update(cx, |library, cx| {
                             library.hide_local_tracks(deleted, cx)
                         });
+                        playback
+                            .update(cx, |playback, cx| playback.remove_from_queue(deleted, cx));
                     }
                     match result {
                         Ok((failed, _)) if failed > 0 => {
