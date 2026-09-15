@@ -209,13 +209,24 @@ async fn engine_loop(
         spectrum,
     };
     let (jobs, job_rx) = channel::<Job>();
+    let (joins, mut joined) = unbounded_channel::<Joined>();
 
     let audio_cue = cue.clone();
     let audio_events = events.clone();
     let interval = config.position_interval;
     let spawned = std::thread::Builder::new()
         .name("deezer-audio".to_owned())
-        .spawn(move || audio_loop(job_rx, audio_cue, chain, changed, audio_events, interval));
+        .spawn(move || {
+            audio_loop(
+                job_rx,
+                audio_cue,
+                chain,
+                changed,
+                joins,
+                audio_events,
+                interval,
+            )
+        });
     if let Err(error) = spawned {
         log::error!("playback: cannot spawn the deezer audio thread: {error}");
         return;
@@ -227,9 +238,9 @@ async fn engine_loop(
     let mut awaited: Option<u64> = None;
     let mut inflight: Option<tokio::task::AbortHandle> = None;
     let mut ahead: Option<(String, Loaded)> = None;
+    // the track the audio thread is decoding, as far as the engine knows: set by a load, then
+    // moved on by the audio thread's own word when a track runs out
     let mut current: Option<String> = None;
-    // handed to the audio thread for a gapless join, so a later seamless load knows it started
-    let mut segued: Option<String> = None;
     // whether the listener wants sound. A play or pause during a fetch has to survive it, or
     // pressing play while a track loads would be forgotten by the time it arrives.
     let mut wanted = false;
@@ -241,19 +252,16 @@ async fn engine_loop(
                 let Some(command) = command else { break };
                 match command {
                     Command::Load { id, at, play, seamless } => {
-                        let joined = segued.as_deref() == Some(id.as_str());
-                        if seamless
-                            && at.is_none()
-                            && (current.as_deref() == Some(id.as_str()) || joined)
-                        {
+                        // the state loads what it heard end, so the audio thread's word on
+                        // that end has to be in before deciding whether this is a resume
+                        while let Ok(join) = joined.try_recv() {
+                            settle(&mut current, join);
+                        }
+                        if seamless && at.is_none() && current.as_deref() == Some(id.as_str()) {
                             // already decoding, either still or through a gapless join
-                            if joined {
-                                current = segued.take();
-                            }
                             jobs.send(Job::Resume).ok();
                             continue;
                         }
-                        segued = None;
                         epoch += 1;
                         if let Some(handle) = inflight.take() {
                             handle.abort();
@@ -335,7 +343,9 @@ async fn engine_loop(
                     Ok(loaded) => loaded,
                     Err(error) => {
                         log::warn!("playback: cannot load deezer track {id}: {error:#}");
-                        if awaited == Some(at) {
+                        // a preload can fail in the same epoch as the load being awaited,
+                        // and only the awaited track's own failure ends that wait
+                        if awaited == Some(at) && current.as_deref() == Some(id.as_str()) {
                             awaited = None;
                             inflight = None;
                             announcing = None;
@@ -361,7 +371,6 @@ async fn engine_loop(
                     continue;
                 }
                 if segue {
-                    segued = Some(id.clone());
                     jobs.send(Job::Queue {
                         id: id.clone(),
                         stream: loaded.stream.clone(),
@@ -369,6 +378,10 @@ async fn engine_loop(
                     }).ok();
                 }
                 ahead = Some((id, loaded));
+            }
+            join = joined.recv() => {
+                let Some(join) = join else { break };
+                settle(&mut current, join);
             }
             heard = written.recv() => {
                 if heard.is_none() {
@@ -385,6 +398,22 @@ async fn engine_loop(
                 return;
             }
         }
+    }
+}
+
+/// What the audio thread did when a track ran out: which one ended, and which one, if any, it
+/// went on to decode from the queue. The engine follows this rather than the queue it handed
+/// over, because a queued track can arrive after the end it was meant for, or fail to open.
+struct Joined {
+    ended: String,
+    next: Option<String>,
+}
+
+/// Moves `current` on to what the audio thread is decoding, as long as the track it reports
+/// ending is still the engine's current one. A load since then has already moved on.
+fn settle(current: &mut Option<String>, join: Joined) {
+    if current.as_deref() == Some(join.ended.as_str()) {
+        *current = join.next;
     }
 }
 
@@ -513,6 +542,7 @@ fn audio_loop(
     cue: Cue,
     chain: Chain,
     changed: UnboundedSender<()>,
+    joins: UnboundedSender<Joined>,
     events: UnboundedSender<PlaybackEvent>,
     interval: Duration,
 ) {
@@ -548,6 +578,13 @@ fn audio_loop(
             && cue.played() >= join.at
         {
             let Join { ended, next, .. } = joining.take().unwrap_or_else(|| unreachable!());
+            // the engine hears this before the state can ask for what follows
+            joins
+                .send(Joined {
+                    ended: ended.clone(),
+                    next: next.as_ref().map(|(id, _)| id.clone()),
+                })
+                .ok();
             events.send(PlaybackEvent::Ended { id: Some(ended) }).ok();
             heard = current.as_ref().map(Playing::mark);
             match next {
