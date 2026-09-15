@@ -377,19 +377,25 @@ fn platform_handle(window: &gpui::Window) -> Option<*mut std::ffi::c_void> {
     Some(handle)
 }
 
+// DWM draws the caption buttons behind the client area, where an opaque window hides them
+// and a transparent or blurred one shows them beside Sonora's own. They come with
+// `WS_SYSMENU`, so that is the style to drop: `WS_CAPTION` has to stay, because DWM only
+// animates minimize, restore and close on a window that carries it. Alt+F4 and the taskbar
+// still close the window; only the Alt+Space menu goes, and Sonora's title bar has no use
+// for it.
 #[cfg(target_os = "windows")]
 fn hide_system_caption(handle: *mut std::ffi::c_void) {
     use windows_sys::Win32::UI::WindowsAndMessaging::{
         GWL_STYLE, GetWindowLongPtrW, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
-        SWP_NOZORDER, SetWindowLongPtrW, SetWindowPos, WS_CAPTION,
+        SWP_NOZORDER, SetWindowLongPtrW, SetWindowPos, WS_SYSMENU,
     };
 
     unsafe {
         let style = GetWindowLongPtrW(handle, GWL_STYLE);
-        if style & WS_CAPTION as isize == 0 {
+        if style & WS_SYSMENU as isize == 0 {
             return;
         }
-        SetWindowLongPtrW(handle, GWL_STYLE, style & !(WS_CAPTION as isize));
+        SetWindowLongPtrW(handle, GWL_STYLE, style & !(WS_SYSMENU as isize));
         SetWindowPos(
             handle,
             std::ptr::null_mut(),
