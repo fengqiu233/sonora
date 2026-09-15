@@ -4,14 +4,15 @@
 //! hands out the encrypted stream urls.
 
 use std::collections::HashMap;
-use std::sync::{Arc, OnceLock};
+use std::fmt;
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::Duration;
 
 use anyhow::{Context as _, Result, bail};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use tokio::sync::RwLock;
-use tokio::task::JoinSet;
+use tokio::time::Instant;
 
 use crate::deezer::{decrypt, wire};
 use crate::{
@@ -33,6 +34,33 @@ const UPLOAD_FORMAT: &str = "MP3_MISC";
 const LIBRARY_PAGE: u32 = 2000;
 
 const PORTRAIT_LIMIT: usize = 24;
+
+/// The public api allows fifty calls per five seconds from one address, so calls leave one
+/// at a time this far apart. A call above the limit waits for its slot instead of being
+/// refused.
+const PACE: Duration = Duration::from_millis(110);
+
+/// How often a refused public call is asked again, and how long the first wait is. Each
+/// retry doubles the wait, so a call gives up about seven seconds after the first refusal.
+const RETRIES: u32 = 3;
+const BACKOFF: Duration = Duration::from_secs(1);
+
+/// The public api's error codes for a call that goes through once asked again later.
+const QUOTA_ERROR: u64 = 4;
+const SERVICE_BUSY: u64 = 700;
+
+/// A public api refusal that clears on its own: the quota is spent or the service is busy.
+/// The code is Deezer's own, or the HTTP status when the refusal never reached JSON.
+#[derive(Debug)]
+struct Busy(u64);
+
+impl fmt::Display for Busy {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "the deezer api is busy (code {})", self.0)
+    }
+}
+
+impl std::error::Error for Busy {}
 
 /// The account-scoped half of the handshake `deezer.getUserData` answers.
 struct Session {
@@ -57,6 +85,12 @@ struct Inner {
     session: RwLock<Session>,
     /// The master stream secret, fetched once from the web player bundle at connect time.
     secret: OnceLock<decrypt::Secret>,
+    /// The earliest moment the next public call may leave. Every call moves it forward by
+    /// `PACE`, and a refusal pushes it out by the backoff, so every caller waits it out.
+    slot: Mutex<Instant>,
+    /// Artist portraits already looked up, so a search that ranks the same artists on
+    /// every keystroke does not spend the quota on them again.
+    portraits: Mutex<HashMap<String, String>>,
 }
 
 impl DeezerClient {
@@ -79,6 +113,8 @@ impl DeezerClient {
                     license_token: String::new(),
                 }),
                 secret: OnceLock::new(),
+                slot: Mutex::new(Instant::now()),
+                portraits: Mutex::new(HashMap::new()),
             }),
         };
         client.ping().await?;
@@ -196,16 +232,68 @@ impl DeezerClient {
         Ok(answer.get("results").cloned().unwrap_or(Value::Null))
     }
 
-    /// A public REST call. Also answers HTTP 200 with an `error` object on failure.
+    /// A public REST call, paced to the api's quota and asked again with a growing wait
+    /// when the quota is spent. Fails after `RETRIES` refusals in a row, or at once on any
+    /// other error.
     async fn public(&self, path: &str) -> Result<Value> {
+        let mut attempt = 0;
+        loop {
+            self.pace().await;
+            let error = match self.public_once(path).await {
+                Ok(answer) => return Ok(answer),
+                Err(error) => error,
+            };
+            let Some(Busy(code)) = error.downcast_ref::<Busy>() else {
+                return Err(error);
+            };
+            if attempt >= RETRIES {
+                return Err(error).with_context(|| {
+                    format!("deezer api {path} stayed busy through {RETRIES} retries")
+                });
+            }
+            let wait = BACKOFF * 2u32.pow(attempt);
+            log::debug!(
+                "deezer: {path} refused with code {code}, asking again in {}ms",
+                wait.as_millis()
+            );
+            self.hold(wait);
+            attempt += 1;
+        }
+    }
+
+    /// Takes the next slot on the public api and waits until it comes up.
+    async fn pace(&self) {
+        let slot = {
+            let mut next = lock(&self.inner.slot);
+            let slot = (*next).max(Instant::now());
+            *next = slot + PACE;
+            slot
+        };
+        tokio::time::sleep_until(slot).await;
+    }
+
+    /// Holds every public call back for `wait`, so the calls queued behind a refusal do not
+    /// each run into the same spent quota.
+    fn hold(&self, wait: Duration) {
+        let mut next = lock(&self.inner.slot);
+        *next = (*next).max(Instant::now() + wait);
+    }
+
+    /// One public round trip. The api answers HTTP 200 with an `error` object on failure,
+    /// and a quota or busy code comes back as `Busy` so `public` can ask again.
+    async fn public_once(&self, path: &str) -> Result<Value> {
         let url = format!("{PUBLIC}{path}");
-        let text = self
+        let response = self
             .inner
             .http
             .get(&url)
             .send()
             .await
-            .with_context(|| format!("cannot reach {url}"))?
+            .with_context(|| format!("cannot reach {url}"))?;
+        if response.status() == reqwest::StatusCode::TOO_MANY_REQUESTS {
+            return Err(Busy(response.status().as_u16().into()).into());
+        }
+        let text = response
             .text()
             .await
             .context("cannot read the deezer api answer")?;
@@ -214,6 +302,9 @@ impl DeezerClient {
         if let Some(error) = answer.get("error")
             && error.is_object()
         {
+            if let Some(code @ (QUOTA_ERROR | SERVICE_BUSY)) = wire::number(error, &["code"]) {
+                return Err(Busy(code).into());
+            }
             bail!("deezer api {path} refused the call: {error}");
         }
         Ok(answer)
@@ -409,24 +500,36 @@ impl MusicApi for DeezerClient {
         })
     }
 
+    /// Answers from the portrait cache first and looks the rest up one at a time, so a
+    /// batch never holds more than one slot of the quota while a search waits for its own.
+    /// An artist the api will not answer for is left out.
     async fn artist_images(&self, ids: Vec<String>) -> Result<HashMap<String, String>> {
-        let mut tasks = JoinSet::new();
-        for id in ids.into_iter().take(PORTRAIT_LIMIT) {
-            let client = self.clone();
-            tasks.spawn(async move {
-                let detail = client.public(&format!("/artist/{id}")).await.ok()?;
-                let cover = detail
-                    .get("picture_big")
-                    .and_then(Value::as_str)
-                    .map(str::to_owned)?;
-                Some((id, cover))
-            });
-        }
         let mut images = HashMap::new();
-        while let Some(result) = tasks.join_next().await {
-            if let Ok(Some((id, image))) = result {
-                images.insert(id, image);
+        let mut missing = Vec::new();
+        {
+            let known = lock(&self.inner.portraits);
+            for id in ids.into_iter().take(PORTRAIT_LIMIT) {
+                match known.get(&id) {
+                    Some(cover) => {
+                        images.insert(id, cover.clone());
+                    }
+                    None => missing.push(id),
+                }
             }
+        }
+        for id in missing {
+            let Ok(detail) = self.public(&format!("/artist/{id}")).await else {
+                continue;
+            };
+            let Some(cover) = detail
+                .get("picture_big")
+                .and_then(Value::as_str)
+                .map(str::to_owned)
+            else {
+                continue;
+            };
+            lock(&self.inner.portraits).insert(id.clone(), cover.clone());
+            images.insert(id, cover);
         }
         Ok(images)
     }
@@ -694,6 +797,13 @@ impl MusicApi for DeezerClient {
     async fn home(&self) -> Result<HomeFeed> {
         Ok(HomeFeed::default())
     }
+}
+
+/// Locks a mutex whose guarded value is still sound after a panic elsewhere.
+fn lock<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
 /// Minimal percent-encoding for a search query, without growing the dependency tree.
