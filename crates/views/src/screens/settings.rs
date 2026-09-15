@@ -166,7 +166,7 @@ pub struct SettingsView {
     password: Entity<Input>,
     credentials_for: Option<&'static str>,
     secret: Entity<Input>,
-    manual_secret: bool,
+    manual_secret: Option<&'static str>,
     scrobbling: Entity<Scrobbling>,
     scrobble_first: Entity<Input>,
     scrobble_second: Entity<Input>,
@@ -226,7 +226,7 @@ impl SettingsView {
             password: cx.new(|cx| Input::new("login-password-hint", cx).masked()),
             credentials_for: None,
             secret: cx.new(|cx| Input::new("login-cookie-hint", cx)),
-            manual_secret: false,
+            manual_secret: None,
             scrobbling,
             scrobble_first: cx.new(|cx| Input::new("settings-scrobble-key", cx)),
             scrobble_second: cx.new(|cx| Input::new("settings-scrobble-secret", cx)),
@@ -2539,13 +2539,15 @@ impl SettingsView {
     }
 
     fn start_manual(&mut self, slug: &'static str, cx: &mut Context<Self>) {
-        self.manual_secret = true;
+        self.manual_secret = Some(slug);
+        let hint = CookiePrompt::hint(slug);
+        self.secret.update(cx, |input, cx| input.set_hint(hint, cx));
         self.session
             .update(cx, |session, cx| session.sign_in_with_cookies(slug, cx));
     }
 
     fn clear_secret(&mut self, cx: &mut Context<Self>) {
-        self.manual_secret = false;
+        self.manual_secret = None;
         self.secret.update(cx, |input, cx| input.set_text("", cx));
     }
 
@@ -2559,8 +2561,8 @@ impl SettingsView {
             .update(cx, |session, cx| session.submit_input(text, cx));
     }
 
-    fn secret_prompt(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        CookiePrompt::new(self.secret.clone())
+    fn secret_prompt(&self, slug: &'static str, cx: &mut Context<Self>) -> impl IntoElement {
+        CookiePrompt::new(slug, self.secret.clone())
             .on_submit(cx.listener(|this, _, _, cx| this.submit_secret(cx)))
             .on_cancel(cx.listener(|this, _, _, cx| this.abandon(cx)))
     }
@@ -2908,11 +2910,12 @@ impl Render for SettingsView {
             }
             _ => None,
         };
-        let manual_secret = self.manual_secret
-            && matches!(
+        let manual_secret = self.manual_secret.filter(|_| {
+            matches!(
                 self.session.read(cx).state(),
                 SessionState::Authorizing(Some(SignInPrompt::Secret))
-            );
+            )
+        });
 
         div()
             .relative()
@@ -2944,8 +2947,8 @@ impl Render for SettingsView {
             .when_some(accounts, |this, accounts| {
                 this.child(self.account_modal(accounts, cx).into_any_element())
             })
-            .when(manual_secret, |this| {
-                this.child(self.secret_prompt(cx).into_any_element())
+            .when_some(manual_secret, |this, slug| {
+                this.child(self.secret_prompt(slug, cx).into_any_element())
             })
             .when(self.credentials_for.is_some(), |this| {
                 this.child(self.credentials_prompt(cx).into_any_element())

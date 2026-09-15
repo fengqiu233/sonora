@@ -43,7 +43,7 @@ pub struct LoginView {
     username: Entity<Input>,
     password: Entity<Input>,
     credentials_for: Option<&'static str>,
-    manual_secret: bool,
+    manual_secret: Option<&'static str>,
     tab: usize,
 }
 
@@ -60,7 +60,7 @@ impl LoginView {
             username: cx.new(|cx| Input::new("login-username-hint", cx)),
             password: cx.new(|cx| Input::new("login-password-hint", cx).masked()),
             credentials_for: None,
-            manual_secret: false,
+            manual_secret: None,
             tab: 0,
         }
     }
@@ -103,7 +103,7 @@ impl LoginView {
     }
 
     fn clear_secret(&mut self, cx: &mut Context<Self>) {
-        self.manual_secret = false;
+        self.manual_secret = None;
         self.secret.update(cx, |input, cx| input.set_text("", cx));
     }
 
@@ -137,14 +137,16 @@ impl LoginView {
 
     fn start(&mut self, slug: &'static str, method: SignIn, cx: &mut Context<Self>) {
         self.acted(cx);
-        self.manual_secret = false;
+        self.manual_secret = None;
         self.session
             .update(cx, |session, cx| session.sign_in(slug, method, cx));
     }
 
     fn start_manual(&mut self, slug: &'static str, cx: &mut Context<Self>) {
         self.acted(cx);
-        self.manual_secret = true;
+        self.manual_secret = Some(slug);
+        let hint = CookiePrompt::hint(slug);
+        self.secret.update(cx, |input, cx| input.set_hint(hint, cx));
         self.session
             .update(cx, |session, cx| session.sign_in_with_cookies(slug, cx));
     }
@@ -403,8 +405,8 @@ impl LoginView {
             .on_dismiss(cx.listener(|this, _, _, cx| this.abandon_credentials(cx)))
     }
 
-    fn secret_prompt(&self, cx: &mut Context<Self>) -> impl IntoElement {
-        CookiePrompt::new(self.secret.clone())
+    fn secret_prompt(&self, slug: &'static str, cx: &mut Context<Self>) -> impl IntoElement {
+        CookiePrompt::new(slug, self.secret.clone())
             .on_submit(cx.listener(|this, _, _, cx| this.submit_secret(cx)))
             .on_cancel(cx.listener(|this, _, _, cx| this.abandon(cx)))
     }
@@ -424,14 +426,15 @@ impl Render for LoginView {
             })
             .map(|info| info.slug)
             .next();
-        let manual_secret = self.manual_secret
-            && matches!(
+        let manual_secret = self.manual_secret.filter(|_| {
+            matches!(
                 &state,
                 SessionState::Authorizing(Some(SignInPrompt::Secret))
-            );
+            )
+        });
         let waiting = match &state {
             SessionState::Authorizing(prompt) => {
-                !manual_secret && !matches!(prompt, Some(SignInPrompt::Accounts(_)))
+                manual_secret.is_none() && !matches!(prompt, Some(SignInPrompt::Accounts(_)))
             }
             _ => false,
         };
@@ -559,8 +562,8 @@ impl Render for LoginView {
                 )
             })
             .when(orphan, |this| this.child(self.consent(cx)))
-            .when(manual_secret, |this| {
-                this.child(self.secret_prompt(cx).into_any_element())
+            .when_some(manual_secret, |this, slug| {
+                this.child(self.secret_prompt(slug, cx).into_any_element())
             })
             .when(self.credentials_for.is_some(), |this| {
                 this.child(self.credentials_prompt(cx).into_any_element())
