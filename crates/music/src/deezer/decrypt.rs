@@ -5,7 +5,7 @@
 
 use anyhow::{Context as _, Result, bail};
 use blowfish::Blowfish;
-use blowfish::cipher::{BlockDecryptMut, KeyIvInit, block_padding::NoPadding};
+use blowfish::cipher::{BlockDecryptMut, InnerIvInit, KeyInit, block_padding::NoPadding};
 use md5::{Digest, Md5};
 
 /// Deezer's encryption block size.
@@ -42,19 +42,30 @@ pub fn track_key(track_id: &str, secret: &Secret) -> Secret {
     key
 }
 
-/// Decrypts one block in place if its index lands on an encrypted stripe. Partial blocks
-/// (only possible at the very end of a track) arrive unencrypted.
-pub fn decrypt_block(block: &mut [u8], index: u64, key: &Secret) {
-    if !index.is_multiple_of(STRIPE as u64) || block.len() < BLOCK {
-        return;
+/// One track's Blowfish, keyed once so the key schedule is not rebuilt for every stripe.
+/// Each encrypted block still starts its CBC chain afresh from the fixed IV.
+pub struct Cipher {
+    blowfish: Blowfish,
+}
+
+impl Cipher {
+    pub fn new(key: &Secret) -> Self {
+        let blowfish =
+            Blowfish::new_from_slice(key).expect("a 16-byte key is within blowfish's range");
+        Self { blowfish }
     }
-    match cbc::Decryptor::<Blowfish>::new_from_slices(key, &IV) {
-        Ok(cipher) => {
-            if let Err(error) = cipher.decrypt_padded_mut::<NoPadding>(block) {
-                log::warn!("deezer: cannot decrypt block {index}: {error}");
-            }
+
+    /// Decrypts one block in place if its index lands on an encrypted stripe. Partial blocks
+    /// (only possible at the very end of a track) arrive unencrypted.
+    pub fn decrypt_block(&self, block: &mut [u8], index: u64) {
+        if !index.is_multiple_of(STRIPE as u64) || block.len() < BLOCK {
+            return;
         }
-        Err(error) => log::warn!("deezer: cannot build the cipher for block {index}: {error}"),
+        let decryptor =
+            cbc::Decryptor::<Blowfish>::inner_iv_init(self.blowfish.clone(), &IV.into());
+        if let Err(error) = decryptor.decrypt_padded_mut::<NoPadding>(block) {
+            log::warn!("deezer: cannot decrypt block {index}: {error}");
+        }
     }
 }
 

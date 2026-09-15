@@ -113,6 +113,7 @@ async fn pump(
     weak: Weak<Shared>,
     progress: watch::Sender<usize>,
 ) {
+    let cipher = decrypt::Cipher::new(&key);
     let mut pending: Vec<u8> = Vec::with_capacity(2 * decrypt::BLOCK);
     let mut blocks = 0u64;
     loop {
@@ -141,7 +142,7 @@ async fn pump(
         let mut ready = Vec::with_capacity(pending.len());
         while pending.len() >= decrypt::BLOCK {
             let mut block: Vec<u8> = pending.drain(..decrypt::BLOCK).collect();
-            decrypt::decrypt_block(&mut block, blocks, &key);
+            cipher.decrypt_block(&mut block, blocks);
             blocks += 1;
             ready.extend_from_slice(&block);
         }
