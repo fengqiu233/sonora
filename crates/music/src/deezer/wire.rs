@@ -23,9 +23,14 @@ pub fn text<'a>(value: &'a Value, keys: &[&str]) -> Option<&'a str> {
     keys.iter().find_map(|key| value.get(key))?.as_str()
 }
 
+/// The first number under any of `keys`. A key the response omits is skipped rather than
+/// ending the search, because the two apis spell the same field differently and only one of
+/// the spellings is ever present.
 pub fn number(value: &Value, keys: &[&str]) -> Option<u64> {
     for key in keys {
-        let field = value.get(key)?;
+        let Some(field) = value.get(key) else {
+            continue;
+        };
         if let Some(number) = field.as_u64() {
             return Some(number);
         }
