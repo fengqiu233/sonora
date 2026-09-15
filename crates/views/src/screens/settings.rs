@@ -195,12 +195,14 @@ impl SettingsView {
         let me = cx.entity_id();
         let focus = cx.focus_handle();
         let languages = SearchPopup::new("settings-language-search", me, cx);
+        languages.set_fallback_focus(focus.clone());
         cx.observe(&languages.input(), |this, _, cx| {
             this.languages.changed(cx);
             cx.notify();
         })
         .detach();
         let typefaces = SearchPopup::new("settings-typeface-search", me, cx);
+        typefaces.set_fallback_focus(focus.clone());
         cx.observe(&typefaces.input(), |this, _, cx| {
             this.typefaces.changed(cx);
             cx.notify();
