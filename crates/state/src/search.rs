@@ -92,6 +92,10 @@ impl Catalog {
         self.albums.clear();
         self.playlists.clear();
     }
+
+    fn is_empty(&self) -> bool {
+        self.tracks.is_empty() && self.albums.is_empty() && self.playlists.is_empty()
+    }
 }
 
 struct Query {
@@ -258,15 +262,26 @@ impl Search {
                     return;
                 }
                 this.loading = false;
-                this.served = Some(query);
 
+                // a part that failed keeps what it showed before, so a refused request
+                // never blanks the page; the query counts as served only once every part
+                // answered, so asking it again fetches the rest
                 let mut trouble = Vec::new();
+                let Catalog {
+                    tracks,
+                    albums: kept_albums,
+                    playlists: kept_playlists,
+                } = std::mem::take(&mut this.catalog);
                 this.catalog = Catalog {
-                    tracks: salvaged(songs, &mut trouble),
-                    albums: salvaged(albums, &mut trouble),
-                    playlists: salvaged(playlists, &mut trouble),
+                    tracks: salvaged(songs, tracks, &mut trouble),
+                    albums: salvaged(albums, kept_albums, &mut trouble),
+                    playlists: salvaged(playlists, kept_playlists, &mut trouble),
                 };
-                this.error = (!trouble.is_empty()).then(|| trouble.join(" · "));
+                if trouble.is_empty() {
+                    this.served = Some(query);
+                }
+                this.error =
+                    (!trouble.is_empty() && this.catalog.is_empty()).then(|| trouble.join(" · "));
                 this.rank(cx);
             })
             .ok();
@@ -615,12 +630,15 @@ fn capped(mut scored: Vec<Scored>) -> Vec<Scored> {
     scored
 }
 
-fn salvaged<T>(found: Result<Vec<T>>, trouble: &mut Vec<String>) -> Vec<T> {
+/// The rows a search part answered with, or the rows it showed before when the request
+/// failed. The failure is logged and recorded in `trouble`.
+fn salvaged<T>(found: Result<Vec<T>>, kept: Vec<T>, trouble: &mut Vec<String>) -> Vec<T> {
     match found {
         Ok(found) => found,
         Err(error) => {
+            log::warn!("search: {error:#}");
             trouble.push(format!("{error:#}"));
-            Vec::new()
+            kept
         }
     }
 }
