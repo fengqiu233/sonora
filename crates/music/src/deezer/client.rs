@@ -376,6 +376,7 @@ impl DeezerClient {
         for format in formats {
             match self.stream_url(&license, token, format).await {
                 Ok(Some(url)) => {
+                    log::debug!("deezer: {effective_id} streams as {format}");
                     let response = self
                         .inner
                         .http

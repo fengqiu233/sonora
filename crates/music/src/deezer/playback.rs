@@ -750,6 +750,10 @@ fn begin(id: &str, stream: &Stream, at: Duration, offset: u64) -> Option<Playing
     };
     let channels = decoder.channels().get();
     let rate = decoder.sample_rate().get();
+    log::debug!(
+        "playback: {id} decodes at {rate} Hz, {channels} channels, {:?} long",
+        decoder.total_duration()
+    );
     if !at.is_zero()
         && let Err(error) = decoder.try_seek(at)
     {
