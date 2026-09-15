@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Deezer as a provider: your favorites, playlists, albums and search, with FLAC playback where
+  the account allows it.
+
 ## [0.36.0] - 2026-09-15
 
 ### Added
