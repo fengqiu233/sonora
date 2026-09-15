@@ -489,11 +489,17 @@ impl MusicApi for SubsonicClient {
             .await
             .with_context(|| format!("cannot load the album {album_id}"))?;
         let album = self.detail_album(&detail, detail.song.len());
-        let tracks = detail
+        let mut tracks: Vec<Track> = detail
             .song
             .into_iter()
             .map(|song| self.song(song))
             .collect();
+        // a server answers in whatever order it keeps; an album is heard in disc and track order
+        tracks.sort_by(|a, b| {
+            (a.disc_number, a.track_number)
+                .cmp(&(b.disc_number, b.track_number))
+                .then_with(|| a.name.cmp(&b.name))
+        });
         Ok(AlbumDetail { album, tracks })
     }
 
