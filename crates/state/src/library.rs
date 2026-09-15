@@ -454,6 +454,7 @@ pub enum LibraryEvent {
     PlaylistGone(String),
     TrackAdded { playlist: String },
     TrackDropped { playlist: String, track: String },
+    TracksHidden(Vec<String>),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -538,6 +539,7 @@ pub struct Library {
     pending_albums: HashMap<String, Task<()>>,
     pending_artists: HashMap<String, Task<()>>,
     contents: HashMap<String, HashSet<String>>,
+    hidden_local_tracks: HashSet<String>,
     reading: HashMap<String, Task<()>>,
     mosaics: HashMap<String, Task<()>>,
 }
@@ -577,13 +579,16 @@ impl Library {
                     this.load(Shelf::Streaming, cx);
                 }
             }
-            SessionEvent::LocalChanged => match session.read(cx).client_of(Shelf::Local) {
-                Some(_) => this.load(Shelf::Local, cx),
-                None => {
-                    this.held_mut(Shelf::Local).clear();
-                    cx.notify();
+            SessionEvent::LocalChanged => {
+                this.hidden_local_tracks.clear();
+                match session.read(cx).client_of(Shelf::Local) {
+                    Some(_) => this.load(Shelf::Local, cx),
+                    None => {
+                        this.held_mut(Shelf::Local).clear();
+                        cx.notify();
+                    }
                 }
-            },
+            }
         })
         .detach();
 
@@ -599,6 +604,7 @@ impl Library {
             pending_albums: HashMap::new(),
             pending_artists: HashMap::new(),
             contents: HashMap::new(),
+            hidden_local_tracks: HashSet::new(),
             reading: HashMap::new(),
             mosaics: HashMap::new(),
         };
@@ -765,7 +771,7 @@ impl Library {
         if ids.is_empty() {
             return;
         }
-        let removed = {
+        let removed: bool = {
             let held = self.held_mut(Shelf::Local);
             let mut removed = false;
             if let Some(ready) = held.ready_mut() {
@@ -782,8 +788,14 @@ impl Library {
             removed || held.starred.tracks.len() != before
         };
         if removed {
+            self.hidden_local_tracks.extend(ids.iter().cloned());
+            cx.emit(LibraryEvent::TracksHidden(ids.to_vec()));
             cx.notify();
         }
+    }
+
+    pub fn local_track_hidden(&self, id: &str) -> bool {
+        self.hidden_local_tracks.contains(id)
     }
 
     pub fn loading(&self, shelf: Shelf, part: LibraryPart) -> bool {

@@ -4,7 +4,7 @@ use gpui::{Context, Entity, Task};
 use music::{Album, Artist, Track};
 use tokio::task::AbortHandle;
 
-use crate::{Io, Session, SessionEvent, join};
+use crate::{Io, Library, LibraryEvent, Session, SessionEvent, join};
 
 pub struct ArtistDetail {
     id: Option<String>,
@@ -18,7 +18,12 @@ pub struct ArtistDetail {
 }
 
 impl ArtistDetail {
-    pub fn new(session: Entity<Session>, io: Io, cx: &mut Context<Self>) -> Self {
+    pub fn new(
+        session: Entity<Session>,
+        library: Entity<Library>,
+        io: Io,
+        cx: &mut Context<Self>,
+    ) -> Self {
         cx.subscribe(&session, |this, _, event, cx| match event {
             SessionEvent::SignedIn => {
                 if let Some(id) = this.id.clone().filter(|id| !music::is_local_id(id)) {
@@ -38,6 +43,23 @@ impl ArtistDetail {
                     this.clear();
                     this.open(&id, cx);
                 }
+            }
+        })
+        .detach();
+
+        cx.subscribe(&library, |this, _, event, cx| {
+            let LibraryEvent::TracksHidden(ids) = event else {
+                return;
+            };
+            let Some(artist) = this.artist.as_mut() else {
+                return;
+            };
+            let before = artist.top_tracks.len();
+            Arc::make_mut(artist)
+                .top_tracks
+                .retain(|track| !track.id.as_ref().is_some_and(|id| ids.contains(id)));
+            if artist.top_tracks.len() != before {
+                cx.notify();
             }
         })
         .detach();

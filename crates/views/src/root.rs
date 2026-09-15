@@ -267,7 +267,14 @@ impl Root {
             return (view.clone(), detail.clone());
         }
 
-        let detail = cx.new(|cx| ArtistDetail::new(self.session.clone(), self.io.clone(), cx));
+        let detail = cx.new(|cx| {
+            ArtistDetail::new(
+                self.session.clone(),
+                Sonora::global(cx).library.clone(),
+                self.io.clone(),
+                cx,
+            )
+        });
         let view = cx.new(|cx| ArtistView::new(detail.clone(), self.playback.clone(), cx));
         self.screens.artist = Some(view.clone());
         self.screens.artist_detail = Some(detail.clone());

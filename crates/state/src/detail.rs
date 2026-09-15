@@ -106,6 +106,14 @@ impl Detail {
                     .retain(|shown| shown.id.as_deref() != Some(track.as_str()));
                 cx.notify();
             }
+            LibraryEvent::TracksHidden(ids) => {
+                let before = this.tracks.len();
+                this.tracks
+                    .retain(|track| !track.id.as_ref().is_some_and(|id| ids.contains(id)));
+                if this.tracks.len() != before {
+                    cx.notify();
+                }
+            }
             _ => {}
         })
         .detach();
@@ -393,7 +401,17 @@ impl Detail {
             Loaded::Album(detail) => {
                 self.header = Some(album_header(&detail.album));
                 self.album = Some(detail.album.clone());
-                self.tracks = detail.tracks.clone();
+                self.tracks = detail
+                    .tracks
+                    .iter()
+                    .filter(|track| {
+                        !track
+                            .id
+                            .as_deref()
+                            .is_some_and(|id| self.library.read(cx).local_track_hidden(id))
+                    })
+                    .cloned()
+                    .collect();
                 self.continuation = None;
             }
             Loaded::Playlist(detail) => {
