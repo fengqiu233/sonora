@@ -133,6 +133,17 @@ fn truthy(value: &Value, keys: &[&str]) -> bool {
         .unwrap_or(false)
 }
 
+/// A track's full title. The gateway names a track without its version and hands the version
+/// over in a field of its own, so the two are joined here and a track keeps one name whichever
+/// api listed it.
+fn versioned(title: &str, version: Option<&str>) -> String {
+    let version = version.map(str::trim).filter(|version| !version.is_empty());
+    match version {
+        Some(version) if !title.contains(version) => format!("{title} {version}"),
+        _ => title.to_owned(),
+    }
+}
+
 /// One track from either api. Anything the response omits falls back to a neutral default;
 /// `duration` is the one field every listing answers.
 pub fn track(value: &Value) -> Option<Track> {
@@ -140,9 +151,10 @@ pub fn track(value: &Value) -> Option<Track> {
         .get("SNG_ID")
         .or_else(|| value.get("id"))
         .and_then(id)?;
-    let name = text(value, &["SNG_TITLE", "title", "TITLE"])
-        .unwrap_or_default()
-        .to_owned();
+    let name = versioned(
+        text(value, &["SNG_TITLE", "title", "TITLE"]).unwrap_or_default(),
+        text(value, &["VERSION"]),
+    );
     let (artists, artist_refs) = artists_of(value);
     let album = value.get("album").cloned().unwrap_or(Value::Null);
     Some(Track {
