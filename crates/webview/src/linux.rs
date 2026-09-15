@@ -340,7 +340,7 @@ impl Live {
         let uri = CString::new(format!("https://{}/", session.target.landing))
             .context("the landing host is not text")?;
         let agent = CString::new(session.target.agent.as_deref().unwrap_or(USER_AGENT))
-            .expect("the user agent is a literal");
+            .context("the user agent is not text")?;
 
         // The context is the whole session: dropping it at the end takes the cookies with it.
         let context = unsafe { (api.webkit_web_context_new_ephemeral)() };
