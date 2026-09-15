@@ -444,7 +444,6 @@ impl Render for LoginView {
                     .small()
                     .ghost()
                     .selected(index == self.tab)
-                    .flex_1()
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.acted(cx);
                         this.tab = index;
@@ -538,7 +537,7 @@ impl Render for LoginView {
                 this.child(self.code_prompt(code, url, cx).into_any_element())
             })
             .when_some(url, |this, url| this.child(self.url_prompt(url)))
-            .child(TabBar::new().w(COLUMN).items(tabs))
+            .child(TabBar::new("login-providers").flex_none().items(tabs))
             .when_some(column, |this, column| this.child(self.column(column, cx)))
             .when_some(guest, |this, slug| {
                 this.child(

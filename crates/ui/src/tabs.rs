@@ -1,5 +1,5 @@
 use gpui::prelude::*;
-use gpui::{AnyElement, App, Div, StyleRefinement, Window, div, px};
+use gpui::{AnyElement, App, Div, ElementId, StyleRefinement, Window, div, px};
 
 use crate::button::Button;
 use crate::theme::ActiveTheme as _;
@@ -15,22 +15,22 @@ pub struct Tabs {
     items: Vec<AnyElement>,
 }
 
+/// A row of segment buttons in one pill. The bar is as wide as its items until the caller
+/// gives it a `max_w`, where it stops and scrolls the items sideways instead, so it takes
+/// any number of tabs. Items keep their own width and never shrink to fit.
 #[derive(IntoElement)]
 pub struct TabBar {
     base: Div,
+    id: ElementId,
     items: Vec<Button>,
 }
 
-impl Default for TabBar {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl TabBar {
-    pub fn new() -> Self {
+    #[track_caller]
+    pub fn new(id: impl Into<ElementId>) -> Self {
         Self {
             base: div(),
+            id: id.into(),
             items: Vec::new(),
         }
     }
@@ -49,21 +49,37 @@ impl Styled for TabBar {
 
 impl RenderOnce for TabBar {
     fn render(self, window: &mut Window, cx: &mut App) -> impl IntoElement {
-        let Self { mut base, items } = self;
+        let Self {
+            mut base,
+            id,
+            items,
+        } = self;
         let theme = cx.theme();
         let radius = (theme.radius - window.rem_size() * GAP).max(px(0.));
         let overrides = std::mem::take(base.style());
+        let capped = overrides.max_size.width.is_some();
 
-        let mut bar = base
+        let row = div()
+            .id(id)
             .flex()
             .items_center()
             .gap_1()
+            .min_w_0()
+            .when(capped, |row| row.overflow_x_scroll())
+            .children(
+                items
+                    .into_iter()
+                    .map(|item| item.flex_shrink_0().rounded(radius)),
+            );
+
+        let mut bar = base
+            .flex()
             .p_1()
             .rounded(theme.radius)
             .bg(theme.secondary)
             .border_1()
             .border_color(theme.border)
-            .children(items.into_iter().map(|item| item.rounded(radius)));
+            .child(row);
 
         bar.style().refine(&overrides);
         bar
