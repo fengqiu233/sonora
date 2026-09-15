@@ -63,9 +63,12 @@ Root: HKCU; Subkey: "Software\Classes\.mka\OpenWithProgids"; ValueType: string; 
 Root: HKCU; Subkey: "Software\Classes\.wv\OpenWithProgids"; ValueType: string; ValueName: "Applications\{#AppExeName}"; ValueData: ""; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Classes\.ape\OpenWithProgids"; ValueType: string; ValueName: "Applications\{#AppExeName}"; ValueData: ""; Flags: uninsdeletevalue
 
+; Setup runs elevated, and a [Run] entry inherits that unless it says otherwise: postinstall
+; entries default to runasoriginaluser, the relaunch after a silent update does not, and an
+; elevated Sonora is out of reach for tools like FancyZones that manage windows unelevated.
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
-Filename: "{app}\{#AppExeName}"; Flags: nowait; Check: RelaunchRequested
+Filename: "{app}\{#AppExeName}"; Flags: nowait runasoriginaluser; Check: RelaunchRequested
 
 [Code]
 function RelaunchRequested: Boolean;
