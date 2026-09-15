@@ -126,7 +126,7 @@ impl AlbumSource {
             playback.play_origin(played.clone(), cx)
         });
 
-        cells::index(cell, state, true, None, press, cx)
+        cells::index(cell, state, true, None, None, press, cx)
     }
 
     pub(super) fn at(&self, row: usize, cx: &App) -> Option<Album> {

@@ -83,10 +83,13 @@ impl RenderOnce for Face {
     }
 }
 
+/// The transport cell at the head of a row. `number` is the label the row rests at; `None`
+/// counts the rows, which is what a list with no numbering of its own wants.
 pub(crate) fn index<F>(
     cell: &Cell<F>,
     state: Option<PlaybackState>,
     playable: bool,
+    number: Option<SharedString>,
     preload: Option<Tap>,
     press: Option<Tap>,
     cx: &App,
@@ -114,7 +117,7 @@ pub(crate) fn index<F>(
                 false => faded,
             })
             .group_hover(ROW_GROUP, |style| style.invisible())
-            .child(format!("{}", cell.display + 1))
+            .child(number.unwrap_or_else(|| SharedString::from((cell.display + 1).to_string())))
             .into_any_element(),
     };
 

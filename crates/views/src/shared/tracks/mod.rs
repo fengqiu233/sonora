@@ -165,6 +165,23 @@ struct Spread {
     extent: Option<(f32, f32)>,
 }
 
+/// What the number at the head of a row counts.
+#[derive(Clone, Copy, PartialEq)]
+enum Numbering {
+    /// The row's place in the list, for anything that is not an album in order.
+    Listing,
+    /// The track's own number on the album.
+    Track,
+    /// The track's number behind its disc, for an album that spans more than one.
+    Disc,
+}
+
+/// The disc a track sits on. Providers disagree on what an absent disc tag means, so a
+/// single-disc album reads as disc one either way.
+fn disc(track: &Track) -> u32 {
+    track.disc_number.max(1)
+}
+
 impl TrackSource {
     pub(crate) fn new(
         columns: &'static [ColumnSpec<TrackField>],
@@ -258,6 +275,38 @@ impl TrackSource {
         }
     }
 
+    /// How the rows of this table are numbered. A catalog shelf holds only the files it was
+    /// given, so an album there is numbered by each track's own place in it and a missing file
+    /// leaves a gap.
+    fn numbering(&self, cx: &App) -> Numbering {
+        let Some(id) = self.album.as_ref().and_then(|album| album.read(cx).id()) else {
+            return Numbering::Listing;
+        };
+        if Sonora::global(cx).library.read(cx).shape(Shelf::of(id)) != Shape::Catalog {
+            return Numbering::Listing;
+        }
+
+        let tracks = self.provider.tracks(cx);
+        let first = tracks.first().map(disc);
+        match tracks.iter().any(|track| Some(disc(track)) != first) {
+            true => Numbering::Disc,
+            false => Numbering::Track,
+        }
+    }
+
+    /// The label a row rests at, or `None` to let the cell count the rows.
+    fn number(&self, track: &Track, cx: &App) -> Option<SharedString> {
+        if track.track_number == 0 {
+            return None;
+        }
+
+        match self.numbering(cx) {
+            Numbering::Listing => None,
+            Numbering::Track => Some(track.track_number.to_string().into()),
+            Numbering::Disc => Some(format!("{}.{}", disc(track), track.track_number).into()),
+        }
+    }
+
     fn starred(&self, track: &Track, cx: &App) -> bool {
         match (&self.is_liked, track.id.as_deref()) {
             (Some(library), Some(id)) => library.read(cx).saved(id),
@@ -333,7 +382,9 @@ impl TrackSource {
             }
         };
 
-        cells::index(cell, state, track.playable, preload, press, cx)
+        let number = self.number(track, cx);
+
+        cells::index(cell, state, track.playable, number, preload, press, cx)
     }
 
     fn title_cell(
