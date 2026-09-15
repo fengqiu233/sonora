@@ -882,3 +882,7 @@ is incomplete. Cutting a release therefore takes three steps:
 Entries are user-facing sentences under `Added` / `Changed` / `Fixed`, not commit subjects: say what
 someone using Sonora can now do, and leave out work no user can observe. Add to `## [Unreleased]` as
 features land so cutting a release is only a rename.
+
+**Keep every entry to one or two short sentences.** The release notes are posted to Discord and read
+there, so a paragraph per entry is worse than a terse line. Name the change and stop: no setup
+instructions, no rationale, no list of the settings it lives under.
