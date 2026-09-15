@@ -44,15 +44,26 @@ pub fn number(value: &Value, keys: &[&str]) -> Option<u64> {
 }
 
 /// The `https://cdn-images.dzcdn.net/images/<kind>/<md5>/<size>x<size>-000000-80-0-0.jpg`
-/// cover url Deezer builds from a picture hash.
+/// cover url Deezer builds from a picture hash. None when the field holds something other
+/// than a hash, which is the caller's cue to fall back to a url field.
 pub fn image(kind: &str, md5: Option<&str>, size: u32) -> Option<String> {
     let md5 = md5?.trim();
-    if md5.is_empty() {
+    if !hashed(md5) {
         return None;
     }
     Some(format!(
         "https://cdn-images.dzcdn.net/images/{kind}/{md5}/{size}x{size}-000000-80-0-0.jpg"
     ))
+}
+
+/// Whether a picture field is the hash an image url is built from. The public api answers
+/// several of them with a link to the image instead, and a link cannot stand in for a hash.
+/// A collage is several hashes joined by `-`, so each part is checked on its own.
+fn hashed(value: &str) -> bool {
+    !value.is_empty()
+        && value
+            .split('-')
+            .all(|part| !part.is_empty() && part.bytes().all(|byte| byte.is_ascii_hexdigit()))
 }
 
 fn cover(value: &Value, size: u32) -> Option<String> {
@@ -271,7 +282,10 @@ pub fn playlist(value: &Value, user_id: &str) -> Option<Playlist> {
                 .and_then(id)
         })
         .unwrap_or_default();
+    // a playlist with no picture of its own answers with a collage of four album hashes, and
+    // PICTURE_TYPE is what says the url is built under `cover` rather than `playlist`
     let md5 = text(value, &["PLAYLIST_PICTURE", "picture"]);
+    let kind = text(value, &["PICTURE_TYPE"]).unwrap_or("playlist");
     Some(Playlist {
         id: playlist_id,
         name: text(value, &["TITLE", "title"])
@@ -285,7 +299,7 @@ pub fn playlist(value: &Value, user_id: &str) -> Option<Playlist> {
         public: number(value, &["STATUS"])
             .map(|status| status == 1)
             .unwrap_or_else(|| truthy(value, &["public"])),
-        cover: image("playlist", md5, 300)
+        cover: image(kind, md5, 300)
             .or_else(|| text(value, &["picture_medium"]).map(str::to_owned)),
         track_count: number(value, &["NB_SONG", "nb_tracks"]).unwrap_or(0) as u32,
         modified_at: number(value, &["DATE_MOD"]).map(|at| at as i64),
