@@ -187,6 +187,7 @@ AI-assisted proofreading and translation of human-written text are permitted.
 
 | Language | Translated | Coverage |
 | --- | --- | --- |
+<<<<<<< HEAD
 | English (`en-US`) | 749/749 | 100% |
 | Deutsch (`de`) | 628/749 | 84% |
 | Español (`es`) | 690/749 | 92% |
@@ -200,7 +201,7 @@ AI-assisted proofreading and translation of human-written text are permitted.
 | Čeština (`cs`) | 743/749 | 99% |
 | Português (Brasil) (`pt-BR`) | 605/749 | 81% |
 | 简体中文 (`zh-CN`) | 605/749 | 81% |
-| Türkçe (`tr`) | 605/749 | 81% |
+| Türkçe (`tr`) | 749/749 | 100% |
 | Shqip (`sq`) | 714/749 | 95% |
 
 <!-- i18n:end -->
