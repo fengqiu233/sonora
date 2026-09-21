@@ -16,7 +16,7 @@ pub enum Language {
     Ukrainian,
     Polish,
     PortugueseBrazilian,
-    ChineseSimplified,
+    SimplifiedChinese,
     Turkish,
 }
 
@@ -33,7 +33,7 @@ impl Language {
         Self::Ukrainian,
         Self::Polish,
         Self::PortugueseBrazilian,
-        Self::ChineseSimplified,
+        Self::SimplifiedChinese,
         Self::Turkish,
     ];
 
@@ -50,7 +50,7 @@ impl Language {
             Self::Ukrainian => "uk",
             Self::Polish => "pl",
             Self::PortugueseBrazilian => "pt-BR",
-            Self::ChineseSimplified => "zh-CN",
+            Self::SimplifiedChinese => "zh-CN",
             Self::Turkish => "tr",
         }
     }
@@ -68,7 +68,7 @@ impl Language {
             Self::Ukrainian => "Українська",
             Self::Polish => "Polski",
             Self::PortugueseBrazilian => "Português (Brasil)",
-            Self::ChineseSimplified => "简体中文",
+            Self::SimplifiedChinese => "简体中文",
             Self::Turkish => "Türkçe",
         }
     }
@@ -102,7 +102,7 @@ impl Language {
             Self::Ukrainian => langid!("uk"),
             Self::Polish => langid!("pl"),
             Self::PortugueseBrazilian => langid!("pt-BR"),
-            Self::ChineseSimplified => langid!("zh-CN"),
+            Self::SimplifiedChinese => langid!("zh-CN"),
             Self::Turkish => langid!("tr"),
         }
     }
@@ -120,7 +120,7 @@ impl Language {
             Self::Ukrainian => include_str!("../../../assets/i18n/uk/main.ftl"),
             Self::Polish => include_str!("../../../assets/i18n/pl/main.ftl"),
             Self::PortugueseBrazilian => include_str!("../../../assets/i18n/pt-BR/main.ftl"),
-            Self::ChineseSimplified => include_str!("../../../assets/i18n/zh-CN/main.ftl"),
+            Self::SimplifiedChinese => include_str!("../../../assets/i18n/zh-CN/main.ftl"),
             Self::Turkish => include_str!("../../../assets/i18n/tr/main.ftl"),
         }
     }
