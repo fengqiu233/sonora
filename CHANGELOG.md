@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Fullscreen can stage the cover in a halo of drifting particles, with a ring of spectrum bars
+
 ### Changed
 
 - An artist page opens as soon as their profile and popular tracks arrive, and fills its

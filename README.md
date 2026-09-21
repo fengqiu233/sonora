@@ -187,7 +187,7 @@ AI-assisted proofreading and translation of human-written text are permitted.
 
 | Language | Translated | Coverage |
 | --- | --- | --- |
-| English (`en-US`) | 720/720 | 100% |
+| English (`en-US`) | 727/727 | 100% |
 | Deutsch (`de`) | 631/720 | 88% |
 | Español (`es`) | 691/720 | 96% |
 | Français (`fr`) | 631/720 | 88% |

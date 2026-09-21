@@ -245,6 +245,8 @@ const DEFAULT_SIDEBAR_WIDTH: f32 = 195.;
 const DEFAULT_SIDEBAR_RIGHT_WIDTH: f32 = 254.;
 const DEFAULT_FONT_SIZE: f32 = 14.;
 const DEFAULT_LYRICS_SCALE: f32 = 1.;
+/// The most particles the starry stage sheds. The stepper in settings steps to this too.
+pub const MAX_PARTICLES: usize = 1024;
 const DEFAULT_STARTUP: &str = "home";
 /// "Whatever the platform uses".
 pub const SYSTEM_FONT: &str = "auto";
@@ -314,6 +316,9 @@ struct Appearance {
     adaptive_theme: bool,
     ambient: bool,
     ambient_motion: bool,
+    starry: bool,
+    vinyl: bool,
+    particles: usize,
     visualizer: bool,
     visualizer_style: String,
     icons: String,
@@ -504,6 +509,9 @@ impl Default for Appearance {
             adaptive_theme: true,
             ambient: true,
             ambient_motion: true,
+            starry: false,
+            vinyl: true,
+            particles: 36,
             visualizer: true,
             visualizer_style: ui::VisualizerStyle::default().id().to_owned(),
             icons: icons::BASE.to_owned(),
@@ -794,6 +802,22 @@ impl AppSettings {
     /// the system reduce-motion preference does too.
     pub fn ambient_motion(&self) -> bool {
         self.values.appearance.ambient_motion
+    }
+
+    /// Whether fullscreen stages the cover on a spinning vinyl record with
+    /// drifting particles and a spectrum ring around it.
+    pub fn starry(&self) -> bool {
+        self.values.appearance.starry
+    }
+
+    /// Whether the starry stage dresses the cover as a vinyl record at all.
+    pub fn vinyl(&self) -> bool {
+        self.values.appearance.vinyl
+    }
+
+    /// How many particles drift off the cover in the starry stage.
+    pub fn particles(&self) -> usize {
+        self.values.appearance.particles.min(MAX_PARTICLES)
     }
 
     /// Whether the playing cover should colour the theme, given whether fullscreen is up. The
@@ -1394,6 +1418,21 @@ impl AppSettings {
 
     pub fn set_ambient_motion(&mut self, motion: bool, cx: &mut Context<Self>) {
         self.values.appearance.ambient_motion = motion;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_starry(&mut self, starry: bool, cx: &mut Context<Self>) {
+        self.values.appearance.starry = starry;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_vinyl(&mut self, vinyl: bool, cx: &mut Context<Self>) {
+        self.values.appearance.vinyl = vinyl;
+        self.schedule_save(cx);
+    }
+
+    pub fn set_particles(&mut self, particles: usize, cx: &mut Context<Self>) {
+        self.values.appearance.particles = particles.clamp(0, MAX_PARTICLES);
         self.schedule_save(cx);
     }
 

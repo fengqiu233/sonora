@@ -22,8 +22,9 @@ use music::scrobble::{Link, Secret};
 use music::{AccountChoice, SignIn, SignInPrompt, WritingSystem};
 use router::{Destination, NavEntry, Screen, SettingsTab, navigate};
 use state::{
-    AppSettings, CdmState, DiscordName, Drm, Failure, FullscreenControlsAutohide, Io, Playback,
-    SYSTEM_FONT, Scan, ScrobbleState, Scrobbling, Session, SessionState, Sleep, Sonora,
+    AppSettings, CdmState, DiscordName, Drm, Failure, FullscreenControlsAutohide, Io,
+    MAX_PARTICLES, Playback, SYSTEM_FONT, Scan, ScrobbleState, Scrobbling, Session, SessionState,
+    Sleep, Sonora,
 };
 use ui::{ActiveTheme as _, Deck, LEADING, Scrollbar, Scroller, eyebrow, snapped};
 use ui::{
@@ -132,6 +133,9 @@ enum Slot {
     Adaptive,
     Ambient,
     AmbientMotion,
+    Starry,
+    Vinyl,
+    Particles,
     Visualizer,
     Icons,
     Opacity,
@@ -549,6 +553,9 @@ impl SettingsView {
                     .ambient()
                     .then_some(Slot::AmbientMotion),
             )
+            .chain([Slot::Starry])
+            .chain(self.settings.read(cx).starry().then_some(Slot::Vinyl))
+            .chain(self.settings.read(cx).starry().then_some(Slot::Particles))
             .chain([
                 Slot::Visualizer,
                 Slot::FullscreenControlsAutohide,
@@ -649,6 +656,9 @@ impl SettingsView {
                 t!("settings-ambient-motion"),
                 t!("settings-ambient-motion-detail"),
             ),
+            Slot::Starry => (t!("settings-starry"), t!("settings-starry-detail")),
+            Slot::Vinyl => (t!("settings-vinyl"), t!("settings-vinyl-detail")),
+            Slot::Particles => (t!("settings-particles"), t!("settings-particles-detail")),
             Slot::Visualizer => (t!("settings-visualizer"), t!("settings-visualizer-detail")),
             Slot::Icons => (t!("settings-icons"), t!("settings-icons-detail")),
             Slot::Opacity => (t!("settings-opacity"), t!("settings-opacity-detail")),
@@ -866,6 +876,9 @@ impl SettingsView {
             Slot::Adaptive => self.adaptive_row(cx).element,
             Slot::Ambient => self.ambient_row(cx).element,
             Slot::AmbientMotion => self.ambient_motion_row(cx).element,
+            Slot::Starry => self.starry_row(cx).element,
+            Slot::Vinyl => self.vinyl_row(cx).element,
+            Slot::Particles => self.particles_row(cx).element,
             Slot::Visualizer => self.visualizer_style_row(cx).element,
             Slot::Icons => self.icons_row(cx).element,
             Slot::Opacity => self.opacity_row(cx).element,
@@ -1747,6 +1760,90 @@ impl SettingsView {
                         .update(cx, |settings, cx| settings.set_ambient_motion(!on, cx));
                 }))
                 .into_any_element(),
+        )
+    }
+
+    /// The fullscreen vinyl stage: the cover spins as the record's label under
+    /// a slow sheen, particles drift off the rim, and a ring of spectrum bars
+    /// surrounds it all.
+    fn starry_row(&self, cx: &mut Context<Self>) -> Setting {
+        let theme = *cx.theme();
+        let muted = theme.muted_foreground;
+        let small = theme.text(Text::Small);
+        let on = self.settings.read(cx).starry();
+
+        self.row(
+            t!("settings-starry"),
+            t!("settings-starry-detail"),
+            muted,
+            small,
+            Switch::new("starry", on)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_starry(!on, cx));
+                }))
+                .into_any_element(),
+        )
+    }
+
+    /// The vinyl itself. The cover cannot turn, so the record only makes sense
+    /// while it does — the sheen and the groove markers are what carry the turn.
+    fn vinyl_row(&self, cx: &mut Context<Self>) -> Setting {
+        let theme = *cx.theme();
+        let muted = theme.muted_foreground;
+        let small = theme.text(Text::Small);
+        let on = self.settings.read(cx).vinyl();
+
+        self.row(
+            t!("settings-vinyl"),
+            t!("settings-vinyl-detail"),
+            muted,
+            small,
+            Switch::new("vinyl", on)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_vinyl(!on, cx));
+                }))
+                .into_any_element(),
+        )
+    }
+
+    /// How many particles drift off the cover, stepped like the lyrics sizes.
+    fn particles_row(&self, cx: &mut Context<Self>) -> Setting {
+        let theme = *cx.theme();
+        let muted = theme.muted_foreground;
+        let small = theme.text(Text::Small);
+        let count = self.settings.read(cx).particles();
+
+        let step = move |suffix: &'static str, label: &'static str, delta: i64| {
+            let wanted = (count as i64 + delta).clamp(0, MAX_PARTICLES as i64) as usize;
+
+            Button::new(SharedString::from(format!("particles-{suffix}")))
+                .label(label)
+                .small()
+                .outline()
+                .disabled(wanted == count)
+                .on_click(cx.listener(move |this, _, _, cx| {
+                    this.settings
+                        .update(cx, |settings, cx| settings.set_particles(wanted, cx));
+                    cx.notify();
+                }))
+        };
+
+        let actions = div()
+            .flex()
+            .items_center()
+            .gap_2()
+            .child(step("fewer", "\u{2212}", -32))
+            .child(div().child(t!("settings-particles-value", count = count as i64)))
+            .child(step("more", "+", 32));
+
+        self.row(
+            t!("settings-particles"),
+            t!("settings-particles-detail"),
+            muted,
+            small,
+            actions.into_any_element(),
         )
     }
 
