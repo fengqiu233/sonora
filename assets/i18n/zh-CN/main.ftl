@@ -53,6 +53,9 @@ library-no-matches = 无匹配结果
 library-not-loaded = 音乐库加载失败
 library-part-not-loaded = 音乐库的这部分加载失败
 library-local-unconfigured = 配置本地音乐库
+library-scanning = 正在扫描你的文件夹…
+library-scanning-found = 正在扫描你的文件夹… 已找到 { $found } 首
+library-scanning-progress = 正在读取你的音乐… { $found } 首中的 { $read } 首
 
 # app menu
 app-refresh-library = 刷新音乐库
@@ -122,6 +125,8 @@ menu-remove-tracks-from-history = { $count ->
     [one] 从历史记录中移除 { $count } 首歌曲
    *[other] 从历史记录中移除 { $count } 首歌曲
 }
+menu-delete-track-file = 删除歌曲文件
+menu-delete-track-files = 删除 { $count } 个歌曲文件
 menu-play-next = 下一首播放
 menu-play-tracks-next = { $count ->
     [one] 下一首播放 { $count } 首歌曲
@@ -131,6 +136,11 @@ menu-add-to-queue = 添加到播放队列
 menu-add-tracks-to-queue = { $count ->
     [one] 将 { $count } 首歌曲添加到播放队列
    *[other] 将 { $count } 首歌曲添加到播放队列
+}
+menu-play-last = 最后播放
+menu-play-tracks-last = { $count ->
+    [one] 最后播放 { $count } 首歌曲
+   *[other] 最后播放 { $count } 首歌曲
 }
 menu-song-radio = 前往歌曲电台
 menu-go-to-album = 前往专辑
@@ -148,6 +158,16 @@ menu-rename-playlist = 重命名播放列表
 menu-delete-playlist = 删除播放列表
 menu-add-playlist-to-library = 添加到音乐库
 menu-remove-playlist-from-library = 从音乐库中移除
+menu-library-add = 添加到音乐库
+menu-library-add-tracks = { $count ->
+    [one] 将 { $count } 首歌曲添加到音乐库
+   *[other] 将 { $count } 首歌曲添加到音乐库
+}
+menu-library-remove = 从音乐库中移除
+menu-library-remove-tracks = { $count ->
+    [one] 从音乐库中移除 { $count } 首歌曲
+   *[other] 从音乐库中移除 { $count } 首歌曲
+}
 menu-make-playlist-public = 设为公开
 menu-make-playlist-private = 设为私密
 menu-open-album = 打开专辑
@@ -192,12 +212,15 @@ confirm-remove-playlists = { $count ->
     [one] 从音乐库中移除此播放列表？
    *[other] 从音乐库中移除 { $count } 个播放列表？
 }
+confirm-delete-track-files-title = 删除歌曲文件？
+confirm-delete-track-files = 文件将从磁盘中永久删除。此操作无法撤销。
 
 # queue panel
 queue-title = 播放队列
 queue-history = 历史记录
 queue-now-playing = 正在播放
 queue-from = 来自
+queue-next-in-queue = 队列中的下一首
 queue-up-next = 接下来播放
 queue-reset = 重置
 queue-clear = 清空
@@ -261,6 +284,7 @@ login-problem-refused = Spotify 拒绝了登录请求。请稍等片刻后重试
 login-problem-premium = Sonora 通过 Spotify Premium 串流，而此账户没有 Premium。请使用 Premium 账户登录以继续。
 login-sign-in = 使用 { $provider } 登录
 login-connect-cookies = 手动粘贴 Cookies
+login-cookie-open = 打开 { $provider }
 login-cookie-submit = 继续
 login-cookie-hint = 在此粘贴 Cookie 请求头
 login-cookie-step-1 = 打开 music.youtube.com 并确保你已登录。使用无痕窗口效果最好。
@@ -268,6 +292,16 @@ login-cookie-step-2 = 按 F12，打开网络（Network）标签页并刷新页�
 login-cookie-step-3 = 选择任意名为“browse”或“next”的请求。
 login-cookie-step-4 = 在标头（Headers）中，找到请求标头（Request Headers）下的 Cookie，右键点击并复制其值。
 login-cookie-step-note = 请确保粘贴完整值，包括 SAPISID 和 __Secure-3PAPISID。
+login-cookie-header-title = 粘贴你的 { $provider } Cookies 以完成登录
+login-cookie-apple-step-3 = 选择任意发往 { $site } 的请求。
+login-cookie-apple-note = 请确保粘贴完整值，包括 { $cookie }。
+login-cookie-named-title = 粘贴你的 { $provider } Cookie 以完成登录
+login-cookie-named-hint = 在此粘贴 Cookie 值
+login-cookie-named-step-1 = 打开 { $site } 并确保你已登录。
+login-cookie-named-step-2 = 按 F12，在 Firefox 中打开存储（Storage）标签页，或在 Chrome 中打开应用程序（Application）标签页。
+login-cookie-named-step-3 = 展开 Cookies，选择 { $site } 并找到名为 { $cookie } 的 Cookie。
+login-cookie-named-step-4 = 双击其值并复制。
+login-cookie-named-note = 仅 { $cookie } 的值就足够了。从网络标签页复制的整个 Cookie 请求头也可以。
 login-window-title = 使用 { $provider } 登录
 login-use = 使用 { $provider }
 login-guest-title = 访客模式
@@ -283,6 +317,8 @@ login-password-hint = 密码
 login-server-submit = 连接
 login-account-title = 选择一个账户
 login-account-detail = 此会话登录了多个 Google 账户。请选择 Sonora 应使用的账户。
+login-choose-title = 登录到 { $provider }
+login-choose-detail = 选择登录 { $provider } 的方式。
 
 # album and playlist pages
 detail-album = 专辑
@@ -299,8 +335,8 @@ play-shuffle = 随机播放
 # artist page
 artist-eyebrow = 歌手
 artist-monthly-listeners = { $count ->
-    [one] { $value } 位每月听众
-   *[other] { $value } 位每月听众
+    [one] { $value } 位月度听众
+   *[other] { $value } 位月度听众
 }
 artist-play = 立即播放
 artist-popular = 热门
@@ -384,7 +420,7 @@ song-genres = 流派
 song-language = 语言
 song-content = 内容
 song-explicit = 露骨内容
-song-clean = 干净版
+song-clean = 纯净版
 artist-about = 关于歌手
 artist-about-fallback = 探索这位歌手的热门歌曲和发行作品。
 artist-about-open = 前往歌手
@@ -455,10 +491,18 @@ settings-opacity-value = { $percent }%
 settings-theme-config = 打开配置
 settings-adaptive = 自适应主题
 settings-adaptive-detail = 使用正在播放专辑的封面为配色方案着色
+settings-ambient = 环境背景
+settings-ambient-detail = 使用封面提取的颜色填充全屏播放器
+settings-ambient-motion = 环境动态效果
+settings-ambient-motion-detail = 让环境颜色缓慢漂移，而不是保持静止
 settings-visualizer = 可视化效果
 settings-visualizer-detail = 在全屏封面后显示频谱条
+settings-visualizer-style-none = 关闭
+settings-visualizer-style-bars = 频谱条
+settings-visualizer-style-wave = 波浪
+settings-visualizer-style-both = 频谱条和波浪
 settings-fullscreen-controls-autohide = 隐藏全屏控件
-settings-fullscreen-controls-autohide-detail = 全屏无操作时淡出播放控件
+settings-fullscreen-controls-autohide-detail = 全屏不活跃时淡出播放控件
 settings-icons = 图标包
 settings-icons-detail = 选择界面使用的图标集
 settings-motion = 减少动画
@@ -537,6 +581,30 @@ settings-sleep-configure = 配置…
 settings-sleep-off = 关闭
 settings-sleep-end-of-track = 歌曲结束后
 settings-sleep-minutes = { $count } 分钟
+settings-widevine = Widevine 模块
+settings-widevine-detail = Apple Music 的歌曲是加密的，需要 Google 的 Widevine 模块。Sonora 会使用浏览器已安装的副本，或者在征得你同意后从 Google 下载。
+settings-widevine-none = Apple Music 的歌曲是加密的，需要 Google 的 Widevine 模块。此处的浏览器都没有安装，Sonora 可以在征得你同意后从 Google 下载。
+settings-widevine-looking = 正在查找…
+settings-widevine-asking = 等待你的答复
+settings-widevine-fetching = 正在下载…
+settings-widevine-installing = 正在安装…
+settings-widevine-installed = 已在浏览器中找到
+settings-widevine-fetched = 已从 Google 下载
+settings-widevine-missing = 未安装
+settings-widevine-configured = 由环境变量设置
+settings-widevine-fetch = 下载
+settings-widevine-uninstall = 卸载
+confirm-uninstall-widevine-title = 卸载 Widevine 模块？
+confirm-uninstall-widevine = Sonora 将删除从 Google 下载的副本。在重新下载之前，Apple Music 的歌曲将无法播放。
+widevine-prompt-title = Widevine 模块
+widevine-prompt-wanted = Apple Music 的歌曲是加密的，需要 Google 的 Widevine 模块。此电脑上的浏览器都没有安装。Sonora 可以从 Google 的服务器下载 Chrome 安装的同一个文件，并保存在自己的文件夹中。
+widevine-prompt-downloading = 正在下载…
+widevine-prompt-terms = 版本 { $version } 已下载。安装即表示接受 Google 对该模块的条款：
+widevine-prompt-installing = 正在安装…
+widevine-prompt-download = 下载
+widevine-prompt-later = 稍后再说
+widevine-prompt-accept = 接受并安装
+widevine-prompt-decline = 拒绝
 settings-equalizer = 均衡器
 settings-equalizer-detail = 以十个频段塑造音色，每个八度一段
 settings-equalizer-preset = 预设
@@ -564,13 +632,29 @@ settings-fullscreen-lyrics-size-detail = 全屏播放器中歌词文字的大小
 settings-lyrics-size-value = { $size }%
 settings-lyrics-for-local-files = 本地文件歌词
 settings-lyrics-for-local-files-detail = 使用本地文件的元数据从互联网获取歌词
+settings-prefer-local-lyrics = 偏爱本地歌词
+settings-prefer-local-lyrics-detail = 使用本地文件标签里存的歌词或它的 .lrc 文件，而不是去搜索其他提供者的歌词
 settings-karaoke-lyrics = 逐字歌词
 settings-karaoke-lyrics-detail = 歌词有时间轴时，逐字高亮显示
 settings-blur-lyrics = 模糊非当前歌词
 settings-blur-lyrics-detail = 在歌词面板中模糊尚未播放和已经播放的歌词行
-settings-romanized-lyrics = 罗马化歌词
+settings-romanized-lyrics = 音译歌词
 settings-romanized-lyrics-detail = 为选定的书写系统显示本地生成的发音
 settings-romanization-writing-systems = 书写系统
+settings-lyrics-providers = 歌词来源
+settings-lyrics-providers-detail = 用于获取歌词的服务
+settings-lyrics-providers-selected = { $count ->
+    [one] 已选择 { $count } 个
+   *[other] 已选择 { $count } 个
+    }
+settings-lyrics-provider-local = 本地文件
+settings-lyrics-provider-spotify = Spotify
+settings-lyrics-provider-youtube = YouTube Music
+settings-lyrics-provider-apple-music = Apple Music
+settings-lyrics-provider-musixmatch = Musixmatch
+settings-lyrics-provider-lrclib = LRCLIB
+settings-lyrics-provider-kugou = 酷狗音乐
+settings-lyrics-provider-netease = 网易云音乐
 settings-romanization-japanese = 日语
 settings-romanization-chinese = 中文
 settings-romanization-korean = 韩语
@@ -584,6 +668,7 @@ settings-group-accounts = 账户
 settings-group-library = 音乐库
 settings-group-text = 文字
 settings-group-motion = 动画
+settings-group-fullscreen = 全屏
 settings-group-title-bar = 标题栏
 settings-group-window-style = 窗口样式
 settings-group-lyrics = 歌词
@@ -593,19 +678,44 @@ settings-group-project = 项目
 settings-adaptive-menu = 自适应上下文菜单
 settings-adaptive-menu-detail = 省略行中已显示的项，例如专辑或歌手
 settings-accounts = 管理账户
-settings-accounts-detail = 此设备可以播放的服务
+settings-accounts-detail = 此设备可用于播放的服务
 settings-provider-none = 未连接
 settings-provider-connected = 已连接
 settings-provider-current = 正在从此服务播放
 settings-provider-guest = 以访客身份播放
 settings-provider-switch = 切换到
 settings-sign-out = 退出登录
+settings-group-scrobbling = 播放记录
+settings-lastfm = Last.fm
+settings-lastfm-detail = Sonora 通过你自己的 Last.fm API 账户记录播放。创建一个账户，然后将 API Key 和 API Secret 粘贴到此处。
+settings-librefm = Libre.fm
+settings-listenbrainz = ListenBrainz
+settings-listenbrainz-detail = 从你的 ListenBrainz 设置页面粘贴用户令牌。
+settings-maloja = Maloja
+settings-maloja-detail = 将 Sonora 指向你的 Maloja 服务器，并粘贴其中一个 API 密钥。
+settings-scrobble-off = 未连接
+settings-scrobble-on = 已连接
+settings-scrobble-waiting = 正在等待你的浏览器…
+settings-scrobble-as = 正在以 { $name } 记录
+settings-scrobble-failed = 无法连接
+settings-scrobble-connect = 连接
+settings-scrobble-disconnect = 断开连接
+settings-scrobble-title = 连接 { $service }
+settings-scrobble-request = 获取 API 密钥
+settings-scrobble-token-request = 获取令牌
+settings-scrobble-key = API Key
+settings-scrobble-secret = API Secret
+settings-scrobble-token = 用户令牌
+settings-scrobble-server = 服务器地址
 settings-local-folder = 音乐文件夹
 settings-local-folder-empty = 未配置
 settings-choose-folder = 选择文件夹…
 settings-add-folder = 添加文件夹
 settings-remove-folder = 移除文件夹
 settings-rescan = 重新扫描
+settings-scan-walking = 正在扫描…
+settings-scan-progress = { $percent }%
+settings-scan-done = 完成，用时 { $seconds } 秒
 settings-tab-about = 关于
 settings-version = 版本
 settings-version-detail = 你正在运行的 Sonora 版本
@@ -654,6 +764,7 @@ saver-strong = 强力（{ $fps } FPS）
 toast-playlist-created = 播放列表已创建
 toast-playlist-renamed = 播放列表已重命名
 toast-playlist-deleted = 播放列表已删除
+toast-local-delete-failed = 部分歌曲文件无法删除
 toast-playlist-added = 播放列表已添加到你的音乐库
 toast-playlist-removed = 播放列表已从你的音乐库中移除
 toast-playlist-visibility = 播放列表可见性已更改
@@ -664,18 +775,24 @@ toast-playlist-busy = 另一个更改仍在进行中
 toast-playlist-signed-out = 登录以更改播放列表
 toast-queued-track = { $name } 已添加到播放队列
 toast-next-track = 接下来播放 { $name }
+toast-last-track = { $name } 最后播放
 toast-queued-album = 专辑已添加到播放队列
 toast-next-album = 接下来播放专辑
+toast-last-album = 专辑最后播放
 toast-queued-playlist = 播放列表已添加到播放队列
 toast-next-playlist = 接下来播放该列表
+toast-last-playlist = 该列表最后播放
 toast-queued-artist = 歌手已添加到播放队列
 toast-next-artist = 接下来播放歌手
+toast-last-artist = 歌手最后播放
 toast-queue-failed = 无法添加到播放队列
 toast-keys-refused = Spotify 未授予此账户播放密钥
 toast-sign-in-to-play = { $name } 仅向已登录用户播放
 toast-track-unplayable = { $name } 无法播放
 toast-library-add-failed = { $name } 无法添加到你的音乐库
 toast-library-remove-failed = { $name } 无法从你的音乐库中移除
+toast-library-added = 已添加到你的音乐库
+toast-library-removed = 已从你的音乐库中移除
 
 # lyrics
 lyrics-title = 歌词
@@ -686,6 +803,7 @@ lyrics-instrumental = 这首歌是纯音乐
 lyrics-failed = 无法连接到歌词服务
 lyrics-follow = 重新跟随歌曲
 lyrics-source = 歌词来自 { $source }
+lyrics-source-local = 歌词来自本地文件
 lyrics-writers = 由 { $writers } 创作
 
 update-available = Sonora { $version } 已发布
@@ -731,3 +849,10 @@ nav-pins-alphabetical = 按字母顺序
 nav-pins-kind = 按类型
 nav-show-full-library = 显示完整音乐库
 nav-return-top = 返回顶部
+
+# trouble
+trouble-offline = 无网络连接
+trouble-offline-detail = 请检查网络连接并重试。
+trouble-not-loaded = 加载失败
+trouble-retry = 重试
+toast-offline = 无网络连接。恢复前将无法播放任何内容。
