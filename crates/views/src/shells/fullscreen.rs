@@ -364,9 +364,9 @@ impl FullscreenView {
         let waiting = !local && album.is_some() && cover_large.is_none();
         let artwork_bounds = self.artwork_bounds.clone();
         let settings = self.settings.read(cx);
-        let starry = settings.starry();
+        let layout = settings.stage_style();
+        let staged = layout.shown();
         let style = settings.visualizer_style();
-        let vinyl = settings.vinyl();
         let particles = settings.particles();
         let theme = *cx.theme();
         let levels = self.visualizer.levels();
@@ -381,7 +381,7 @@ impl FullscreenView {
             self.playback.read(cx).state(),
             PlaybackState::Playing | PlaybackState::Loading
         );
-        let pose = match starry && ui::motion::animates(cx) {
+        let pose = match staged && ui::motion::animates(cx) {
             true => self.stage_clock.tick(playing),
             false => starry::Pose {
                 turn: 0.,
@@ -395,8 +395,8 @@ impl FullscreenView {
             levels,
             style,
             particles,
-            vinyl,
-            elapsed: match starry && ui::motion::animates(cx) {
+            layout,
+            elapsed: match staged && ui::motion::animates(cx) {
                 true => starry::spin(),
                 false => 0.,
             },
@@ -404,7 +404,7 @@ impl FullscreenView {
             presence: pose.presence,
             theme,
         };
-        let cover = if starry {
+        let cover = if staged {
             vec![
                 div()
                     .absolute()
@@ -1142,7 +1142,8 @@ impl Render for FullscreenView {
         let cover_scale = presentation_scale(presented_side, raster_side);
         let lift = (presented_side - side) / 2.;
         let staged = self.panel.is_none() || split;
-        let starry = staged && self.settings.read(cx).starry();
+        let layout = self.settings.read(cx).stage_style();
+        let starry = staged && layout.shown();
 
         let style = self.settings.read(cx).visualizer_style();
         let visualizer_on = self.panel.is_none() && style.shown();

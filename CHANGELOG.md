@@ -9,7 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
-- Fullscreen can stage the cover in a halo of drifting particles, with a ring of spectrum bars
+- Fullscreen stages the cover four ways, picked from one Stage setting under Appearance >
+  Fullscreen: plain, haloed in drifting particles with a ring of spectrum bars, dressed as the
+  label of a record that turns under a slow sheen, or slid out of its square sleeve with the
+  record turning behind it. The cover turns with the record wherever there is one, the particles
+  fade in as the music starts and out as it stops, and how many of them drift is its own setting.
 
 ### Changed
 

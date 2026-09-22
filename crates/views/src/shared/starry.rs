@@ -55,6 +55,22 @@ const MARKERS: [f32; 3] = [0.76, 0.84, 0.92];
 const MARKER_SPAN: f32 = 0.26;
 /// How many straight segments stand in for a smooth circle.
 const SEGMENTS: usize = 72;
+/// The sleeve: the cover's edge and the record's diameter as shares of the
+/// stage's side, how far the record's centre sits past the cover's right edge,
+/// where the cover starts, and the label's diameter as a share of the
+/// record's. Together they leave the record peeking out to the right with
+/// about half of it showing, the way a record slid out of its sleeve sits in
+/// the hand.
+const SLEEVE: f32 = 0.64;
+const SLEEVE_DISC: f32 = 0.52;
+const SLEEVE_CX: f32 = 0.68;
+const SLEEVE_X: f32 = 0.025;
+const SLEEVE_LABEL: f32 = 0.52;
+/// The sleeve's grooves, as shares of the record's radius: they run outside
+/// the label and stop short of the rim.
+const SLEEVE_GROOVES: usize = 6;
+const SLEEVE_GROOVE_IN: f32 = 0.58;
+const SLEEVE_GROOVE_OUT: f32 = 0.94;
 
 /// Where the stage's clock started, so the angle carries over between visits
 /// to fullscreen instead of resetting to the same pose every time.
@@ -178,17 +194,18 @@ impl Clock {
     }
 }
 
-/// What the stage is asked to show: the spectrum the ring reads and the shape
-/// it reads them in, how much drifts off the rim, whether a record is staged,
-/// how far it has turned and for how long, and the theme the stage dresses in.
-/// Two clocks on purpose: the record and everything riding it turn only while
-/// sound plays, while the particles keep to the wall clock whether or not it
-/// does.
+/// What the stage is asked to show: which way the cover is staged, the
+/// spectrum the ring reads and the shape it reads them in, how much drifts off
+/// the rim, how far the record has turned and for how long, and the theme the
+/// stage dresses in. Two clocks on purpose: the record and everything riding
+/// it turn only while sound plays, while the particles keep to the wall clock
+/// whether or not it does.
 pub(crate) struct Stage {
     pub(crate) levels: Levels,
     pub(crate) style: VisualizerStyle,
     pub(crate) particles: usize,
-    pub(crate) vinyl: bool,
+    /// The way the cover is staged: bare, starry, on a record, in its sleeve.
+    pub(crate) layout: ui::StageStyle,
     /// Seconds on the wall clock, driving the particles' drift.
     pub(crate) elapsed: f32,
     /// Seconds the music has been playing, driving the record's turn.
@@ -212,10 +229,10 @@ struct Motion {
     elapsed: f32,
 }
 
-/// The whole stage, sized to `side`: the halo always, the ring in whatever
-/// shape the visualizer is set to, and the record with everything that sweeps
-/// across it only when a record is asked for — the cover cannot turn, so
-/// without the turning record around it there is no vinyl to stage.
+/// The whole stage, sized to `side`. The sleeve stages the cover on bare
+/// paint with the record behind it; the rest halo the cover and read the
+/// spectrum, staging the record with everything that sweeps across it only
+/// when a record is asked for.
 pub(crate) fn stage(
     side: Pixels,
     label: Option<impl Into<SharedString>>,
@@ -226,7 +243,7 @@ pub(crate) fn stage(
         levels,
         style,
         particles,
-        vinyl,
+        layout,
         elapsed,
         turn,
         presence,
@@ -234,6 +251,16 @@ pub(crate) fn stage(
     } = stage;
     let paint = palette(&theme);
     let side = side.as_f32();
+    // Resolved once so both the sleeve's cover and its record label can carry
+    // the same art.
+    let label: Option<SharedString> = label.map(Into::into);
+
+    // The sleeve is a different composition: the cover square with the record
+    // peeking out behind it, no field around either.
+    if layout == ui::StageStyle::Sleeve {
+        return sleeve(side, label, waiting, turn, &paint, theme.radius * 2.);
+    }
+    let vinyl = layout.turned();
 
     div()
         .relative()
@@ -280,6 +307,64 @@ pub(crate) fn stage(
         )
 }
 
+/// The sleeve layout: the cover slid most of the way out of its sleeve — that
+/// is, off the record behind it — so the record peeks out to the right with
+/// the cover's own art turning on it as its label. The cover itself stays
+/// square and still; the turn belongs to the record and its label.
+fn sleeve(
+    side: f32,
+    label: Option<SharedString>,
+    waiting: bool,
+    turn: f32,
+    paint: &Palette,
+    radius: Pixels,
+) -> Div {
+    let cover = side * SLEEVE;
+    let disc = side * SLEEVE_DISC;
+    let center_x = side * SLEEVE_CX;
+    let center_y = side / 2.;
+    let label_side = disc * SLEEVE_LABEL;
+
+    div()
+        .relative()
+        .size(px(side))
+        .child(
+            canvas(move |_, _, _| {}, {
+                let paint = *paint;
+                move |bounds, _, window, _| platter(bounds, turn, &paint, window)
+            })
+            .absolute()
+            .inset_0(),
+        )
+        .child(
+            div()
+                .absolute()
+                .left(px(center_x - label_side / 2.))
+                .top(px(center_y - label_side / 2.))
+                // The cover's own art rides the record as its label, turning
+                // with it the way a record label does.
+                .child(
+                    Artwork::new(label.clone())
+                        .size(px(label_side))
+                        .spin(turn / SPIN)
+                        .circle()
+                        .soft(waiting),
+                ),
+        )
+        .child(
+            div()
+                .absolute()
+                .left(px(side * SLEEVE_X))
+                .top(px((side - cover) / 2.))
+                .child(
+                    Artwork::new(label)
+                        .size(px(cover))
+                        .corner_radius(radius)
+                        .soft(waiting),
+                ),
+        )
+}
+
 /// Every colour the stage paints with, resolved once from the theme.
 #[derive(Clone, Copy)]
 struct Palette {
@@ -293,6 +378,11 @@ struct Palette {
     sheen: Hsla,
     marker: Hsla,
     label_edge: Hsla,
+    /// The sleeve's record: a pastel pressing in the theme's own hue.
+    record: Hsla,
+    record_groove: Hsla,
+    record_edge: Hsla,
+    hole: Hsla,
 }
 
 /// The record dresses in the theme's own hue at a whisper: a dark disc with a
@@ -326,6 +416,16 @@ fn palette(theme: &Theme) -> Palette {
         l: match dark {
             true => hue.l.clamp(0.42, 0.72),
             false => hue.l.clamp(0.32, 0.52),
+        },
+        ..hue
+    };
+    // The sleeve's record: a pastel pressing in the theme's own hue, lighter
+    // than the vinyl the starry stage paints so it reads against bare paint.
+    let record = Hsla {
+        s: (hue.s * 0.9).clamp(0.12, 0.5),
+        l: match dark {
+            true => 0.72,
+            false => 0.58,
         },
         ..hue
     };
@@ -378,6 +478,24 @@ fn palette(theme: &Theme) -> Palette {
                 false => 0.08,
             },
             0.35,
+        ),
+        record,
+        record_groove: Hsla {
+            l: record.l + 0.06,
+            a: 0.7,
+            ..record
+        },
+        record_edge: Hsla {
+            l: record.l - 0.10,
+            a: 0.6,
+            ..record
+        },
+        hole: neutral(
+            match dark {
+                true => 0.10,
+                false => 0.22,
+            },
+            1.,
         ),
     }
 }
@@ -616,6 +734,71 @@ fn record(center: Point<Pixels>, radius: f32, paint: &Palette, window: &mut Wind
     match rim.build() {
         Ok(path) => window.paint_path(path, paint.rim),
         Err(error) => log::warn!("starry: cannot build the rim: {error}"),
+    }
+}
+
+/// The sleeve's record, as a pastel pressing: face, grooves, a sheen riding
+/// the turn, and the spindle hole at its centre. The label — the cover's own
+/// art, turning — is an element laid over this, not painted here.
+fn platter(bounds: Bounds<Pixels>, turn: f32, paint: &Palette, window: &mut Window) {
+    let side = bounds.size.width.min(bounds.size.height).as_f32();
+    // Painted paths read in window coordinates, so the record's centre is the
+    // canvas origin plus its share of the stage's side.
+    let center = bounds.origin + point(px(side * SLEEVE_CX), px(side / 2.));
+    let radius = side * SLEEVE_DISC / 2.;
+    let angle = TAU * turn / SPIN;
+
+    let mut face = PathBuilder::fill();
+    circle(&mut face, center, radius);
+    match face.build() {
+        Ok(path) => window.paint_path(path, paint.record),
+        Err(error) => log::warn!("starry: cannot build the platter: {error}"),
+    }
+
+    let mut grooves = PathBuilder::stroke(px(1.));
+    for groove in 0..SLEEVE_GROOVES {
+        let t = SLEEVE_GROOVE_IN
+            + (SLEEVE_GROOVE_OUT - SLEEVE_GROOVE_IN) * groove as f32 / (SLEEVE_GROOVES - 1) as f32;
+        circle(&mut grooves, center, radius * t);
+    }
+    match grooves.build() {
+        Ok(path) => window.paint_path(path, paint.record_groove),
+        Err(error) => log::warn!("starry: cannot build the platter's grooves: {error}"),
+    }
+
+    let mut rim = PathBuilder::stroke(px(1.5));
+    circle(&mut rim, center, radius - 0.75);
+    match rim.build() {
+        Ok(path) => window.paint_path(path, paint.record_edge),
+        Err(error) => log::warn!("starry: cannot build the platter's rim: {error}"),
+    }
+
+    // A short sheen riding the rim with the turn, the only cue on an even
+    // pastel face that the record is moving at all.
+    let mut sheen = PathBuilder::stroke(px(2.));
+    arc(
+        &mut sheen,
+        center,
+        radius * 0.97,
+        angle + 0.4,
+        angle + 0.4 + MARKER_SPAN,
+    );
+    match sheen.build() {
+        Ok(path) => window.paint_path(path, paint.record_groove),
+        Err(error) => log::warn!("starry: cannot build the platter's sheen: {error}"),
+    }
+
+    let mut pin = PathBuilder::fill();
+    circle(&mut pin, center, (side * 0.008).max(2.5));
+    match pin.build() {
+        Ok(path) => window.paint_path(path, paint.hole),
+        Err(error) => log::warn!("starry: cannot build the spindle hole: {error}"),
+    }
+    let mut pin_rim = PathBuilder::stroke(px(1.));
+    circle(&mut pin_rim, center, (side * 0.008).max(2.5) + 1.2);
+    match pin_rim.build() {
+        Ok(path) => window.paint_path(path, paint.record_edge),
+        Err(error) => log::warn!("starry: cannot build the spindle hole's rim: {error}"),
     }
 }
 
