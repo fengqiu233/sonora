@@ -11,6 +11,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Custom color themes can live as separate JSON files in the config themes folder. Sonora lists them
   in Appearance settings and picks up edits, additions, and deletions without a restart.
+- Fullscreen can stage the cover four ways: on its own, in a halo of drifting particles, as a
+  record that turns under a slow sheen, or in a sleeve with the record showing at its side.
+  Pick one under Stage in Appearance settings.
 
 ## [0.40.0] - 2026-09-25
 
