@@ -492,7 +492,7 @@ impl ArtworkCache {
         for resource in &stale {
             self.condemn(resource);
         }
-        self.trim_turns();
+        self.trim_turns(cx);
         if !stale.is_empty() {
             self.condemned_at = Some(Instant::now());
             cx.refresh_windows();
@@ -623,6 +623,7 @@ impl ArtworkCache {
         key: &ArtworkKey,
         image: &Arc<RenderImage>,
         turns: f32,
+        cx: &mut App,
     ) -> Arc<RenderImage> {
         let step = ((turns - turns.floor()) * TURN_STEPS as f32) as u32 % TURN_STEPS;
         if self
@@ -630,6 +631,12 @@ impl ArtworkCache {
             .get(key)
             .is_none_or(|turned| turned.of != image.id)
         {
+            // A cover decoded again — or sampled at another edge — starts its
+            // turns over. The cuts it had are the renderer's to forget: nothing
+            // asks for them under this key again.
+            if let Some(spent) = self.turns.remove(key) {
+                spent.release(cx);
+            }
             let Some(turned) = Turned::of(image) else {
                 log::warn!("artwork: cannot turn a cover");
                 return image.clone();
@@ -645,8 +652,18 @@ impl ArtworkCache {
             log::warn!("artwork: cannot cut a turn");
             return image.clone();
         };
-        if turned.held.len() >= TURN_HELD {
-            turned.held.pop_front();
+        // A cut the record has passed is still a texture the renderer holds.
+        // Every cut is a frame of its own with an id of its own, and this cache
+        // is the only thing that knows one is spent — so it has to be handed
+        // back, or a record turning for a minute leaves a minute of textures
+        // behind.
+        let over = turned.held.len() >= TURN_HELD;
+        let spent = match over {
+            true => turned.held.pop_front(),
+            false => None,
+        };
+        if let Some((_, spent)) = spent {
+            cx.drop_image(spent, None);
         }
         turned.held.push_back((step, cut.clone()));
         cut
@@ -655,7 +672,7 @@ impl ArtworkCache {
     /// Keeps the covers mid-turn to those still held, then to those still worth
     /// holding. A cut is cheap to rebuild and dear to keep, so a cover that has
     /// left the cache takes its turns with it.
-    fn trim_turns(&mut self) {
+    fn trim_turns(&mut self, cx: &mut App) {
         if self.turns.len() <= TURN_COVERS {
             return;
         }
@@ -664,24 +681,44 @@ impl ArtworkCache {
             let Some(key) = self.turns.keys().next().cloned() else {
                 break;
             };
-            self.turns.remove(&key);
+            if let Some(spent) = self.turns.remove(&key) {
+                spent.release(cx);
+            }
         }
     }
 }
 
 impl Turned {
+    /// Hands every cut back to the renderer. A cut is a frame of its own, and
+    /// the cache is the only thing that knows the record has turned past it.
+    fn release(self, cx: &mut App) {
+        for (_, spent) in self.held {
+            cx.drop_image(spent, None);
+        }
+    }
+
     /// The square a cover's turns are cut from: centred, and no larger than
-    /// `TURN_EDGE` however large the cover was decoded.
+    /// `TURN_EDGE` however large the cover was decoded. The square is lifted a
+    /// row at a time rather than copied whole — a cover the stage asked for at
+    /// its own size is dear, and the only part of it the record shows is this
+    /// square.
     fn of(image: &RenderImage) -> Option<Self> {
         let size = image.size(0);
         let (width, height) = (size.width.0.max(0) as u32, size.height.0.max(0) as u32);
-        let bytes = image.as_bytes(0)?.to_vec();
-        let whole = RgbaImage::from_raw(width, height, bytes)?;
-
+        let bytes = image.as_bytes(0)?;
         let side = width.min(height);
-        let square =
-            imageops::crop_imm(&whole, (width - side) / 2, (height - side) / 2, side, side)
-                .to_image();
+        if side == 0 || bytes.len() < width as usize * height as usize * 4 {
+            return None;
+        }
+
+        let (left, top) = ((width - side) / 2, (height - side) / 2);
+        let stride = side as usize * 4;
+        let mut square = Vec::with_capacity(stride * side as usize);
+        for row in 0..side as usize {
+            let from = ((top as usize + row) * width as usize + left as usize) * 4;
+            square.extend_from_slice(&bytes[from..from + stride]);
+        }
+        let square = RgbaImage::from_raw(side, side, square)?;
         let base = match side > TURN_EDGE {
             true => imageops::thumbnail(&square, TURN_EDGE, TURN_EDGE),
             false => square,
@@ -987,8 +1024,8 @@ impl RenderOnce for Artwork {
                         if let Some(prepared) =
                             cache.update(cx, |cache, _| cache.prepared(&resource, edge, soft))
                         {
-                            return Some(Ok(cache.update(cx, |cache, _| match spin {
-                                Some(turns) => cache.turned(&key, &prepared, turns),
+                            return Some(Ok(cache.update(cx, |cache, cx| match spin {
+                                Some(turns) => cache.turned(&key, &prepared, turns, cx),
                                 None => prepared,
                             })));
                         }
@@ -998,7 +1035,7 @@ impl RenderOnce for Artwork {
                                 cache.update(cx, |cache, cx| {
                                     let image = cache.prepare(&resource, edge, soft, image, cx);
                                     match spin {
-                                        Some(turns) => cache.turned(&key, &image, turns),
+                                        Some(turns) => cache.turned(&key, &image, turns, cx),
                                         None => image,
                                     }
                                 })
