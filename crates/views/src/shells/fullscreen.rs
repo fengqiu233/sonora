@@ -343,6 +343,18 @@ impl FullscreenView {
             .update(cx, |playback, cx| playback.seek_fraction(fraction, cx));
     }
 
+    /// Whether the stage has any business turning: sound is being made, not
+    /// merely held ready. A restored track sits in `Loading` while the engine
+    /// fetches it and parks it — nobody asked for it, and the play button says
+    /// so — so the record reads the state a play button shows, not the state
+    /// the engine is in, and stays still on a cover nobody is playing.
+    fn sounding(&self, cx: &App) -> bool {
+        matches!(
+            self.playback.read(cx).apparent(),
+            PlaybackState::Playing | PlaybackState::Loading
+        )
+    }
+
     fn artwork(
         &mut self,
         layout_side: Pixels,
@@ -387,10 +399,7 @@ impl FullscreenView {
         // Both hold their pose when motion is reduced, and the ring reads the
         // already-eased spectrum levels, so it settles the way the bottom
         // visualizer does.
-        let playing = matches!(
-            self.playback.read(cx).state(),
-            PlaybackState::Playing | PlaybackState::Loading
-        );
+        let playing = self.sounding(cx);
         let pose = match staged && ui::motion::animates(cx) {
             true => self.stage_clock.tick(playing),
             false => starry::Pose {
@@ -1172,13 +1181,9 @@ impl Render for FullscreenView {
         // around the music. Once a paused stage has faded to nothing there is
         // nothing left to draw, and the loop winds down until it is asked for
         // again; playback starting wakes the view on its own.
-        let playing = matches!(
-            self.playback.read(cx).state(),
-            PlaybackState::Playing | PlaybackState::Loading
-        );
         self.stage.run(
             cx.entity_id(),
-            starry && ui::motion::animates(cx) && self.stage_clock.moving(playing),
+            starry && ui::motion::animates(cx) && self.stage_clock.moving(self.sounding(cx)),
             window,
         );
         let bottom = |bounds: Bounds<Pixels>| bounds.origin.y + bounds.size.height;
