@@ -9,6 +9,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Hovering a theme you cannot pick while the adaptive theme is on says why it is unavailable.
+- In guest mode, Show on startup greys out Songs, Albums, Artists and Playlists, which stay empty
+  without an account, and says why when you hover them.
+
+### Fixed
+
+- The local Songs page is titled Songs during the first library scan, rather than Favorites.
+
+## [0.41.0] - 2026-09-28
+
+### Added
+
 - Custom color themes can live as separate JSON files in the config themes folder. Sonora lists them
   in Appearance settings and picks up edits, additions, and deletions without a restart.
 - Recently played now shows what you played on your other devices, such as your phone, read
@@ -1912,7 +1924,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 Initial release: a native Spotify client with playback, an interactive queue, the saved library,
 search, album, playlist, artist and song pages, context menus and adaptive theming.
 
-[unreleased]: https://github.com/sonorahq/sonora/compare/v0.40.0...HEAD
+[unreleased]: https://github.com/sonorahq/sonora/compare/v0.41.0...HEAD
+[0.41.0]: https://github.com/sonorahq/sonora/compare/v0.40.0...v0.41.0
 [0.40.0]: https://github.com/sonorahq/sonora/compare/v0.39.0...v0.40.0
 [0.39.0]: https://github.com/sonorahq/sonora/compare/v0.38.0...v0.39.0
 [0.38.0]: https://github.com/sonorahq/sonora/compare/v0.37.0...v0.38.0
