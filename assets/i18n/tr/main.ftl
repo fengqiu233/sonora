@@ -266,7 +266,6 @@ login-account-title = Bir hesap seç
 login-account-detail = Bu oturumda birden çok Google hesabı açık. Sonora'nın kullanacağı hesabı seç.
 
 # album and playlist pages
-detail-album = Albüm
 detail-playlist = Çalma listesi
 detail-play-album = Albümü çal
 detail-play-playlist = Çalma listesini çal

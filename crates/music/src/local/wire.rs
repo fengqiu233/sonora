@@ -7,8 +7,8 @@ use lofty::file::{AudioFile, TaggedFileExt};
 use lofty::picture::{MimeType, Picture, PictureType};
 use lofty::prelude::Accessor;
 use lofty::probe::Probe;
-use lofty::tag::ItemKey::AlbumArtist;
-use lofty::tag::Tag;
+use lofty::tag::{ItemKey, Tag};
+use serde::{Deserialize, Serialize};
 use symphonia::core::formats::FormatOptions;
 use symphonia::core::io::MediaSourceStream;
 use symphonia::core::meta::{MetadataOptions, StandardTagKey};
@@ -219,6 +219,19 @@ fn numbered(stem: &str) -> Option<String> {
     None
 }
 
+/// One file as a scan reads it: the track, and the tags its album is grouped, dated and labelled by.
+/// The index stores it whole, so a new field makes every stored row unreadable and each file is read
+/// again once.
+#[derive(Clone, Serialize, Deserialize)]
+pub struct Tagged {
+    pub track: Track,
+    /// The album artist the tags name, `None` when they name none.
+    pub album_artist: Option<String>,
+    pub year: Option<i32>,
+    /// The release type the tags name, `None` when they name neither a type nor a compilation.
+    pub release: Option<ReleaseType>,
+}
+
 struct FallbackProbe {
     duration: std::time::Duration,
     title: Option<String>,
@@ -228,6 +241,8 @@ struct FallbackProbe {
     track_number: u32,
     disc_number: u32,
     year: Option<i32>,
+    release: Vec<String>,
+    compilation: bool,
     cover_data: Option<(Vec<u8>, String)>,
 }
 
@@ -295,6 +310,8 @@ fn probe_symphonia_at(path: &Path, skip: u64) -> Option<FallbackProbe> {
     let mut track_number = 0;
     let mut disc_number = 0;
     let mut year = None;
+    let mut release = Vec::new();
+    let mut compilation = false;
     let mut cover_data = None;
 
     let mut collect_metadata = |rev: &symphonia::core::meta::MetadataRevision| {
@@ -331,6 +348,12 @@ fn probe_symphonia_at(path: &Path, skip: u64) -> Option<FallbackProbe> {
                         disc_number = n;
                     }
                 }
+                Some(StandardTagKey::MusicBrainzReleaseType) => {
+                    release.extend(clean_val(&tag.value));
+                }
+                Some(StandardTagKey::Compilation) => {
+                    compilation |= flagged(&tag.value.to_string());
+                }
                 Some(StandardTagKey::Date) if year.is_none() => {
                     let s = tag.value.to_string();
                     if s.len() >= 4 {
@@ -366,6 +389,8 @@ fn probe_symphonia_at(path: &Path, skip: u64) -> Option<FallbackProbe> {
         track_number,
         disc_number,
         year,
+        release,
+        compilation,
         cover_data,
     })
 }
@@ -382,7 +407,7 @@ pub fn modified_at(path: &Path) -> Option<i64> {
     }
 }
 
-/// Reads one file into a track, the album artist its tags name, and the year its tag claims.
+/// Reads one file into a track, with the album artist, year and release type its tags claim.
 /// A file naming an album artist joins that artist's album of the same name. One that names none
 /// joins the album of the same name in its own folder, so featured artists never split an album.
 /// The year comes out of the same read because it is what an album is dated by, and opening every
@@ -392,7 +417,7 @@ pub fn track_from_file(
     artist_hint: Option<&str>,
     album_hint: Option<&str>,
     cache_dir: &Path,
-) -> Option<(Track, Option<String>, Option<i32>)> {
+) -> Option<Tagged> {
     let tagged = Probe::open(path).ok().and_then(|file| file.read().ok());
     let tag = tagged
         .as_ref()
@@ -438,7 +463,7 @@ pub fn track_from_file(
         .unwrap_or_else(|| "Unknown Artist".to_owned());
 
     let album_artist = clean(
-        tag.and_then(|tag| tag.get_string(AlbumArtist))
+        tag.and_then(|tag| tag.get_string(ItemKey::AlbumArtist))
             .map(std::borrow::Cow::Borrowed),
     )
     .or_else(|| fallback.as_ref().and_then(|fb| fb.album_artist.clone()))
@@ -499,8 +524,19 @@ pub fn track_from_file(
         .or_else(|| fallback.as_ref().and_then(|fb| fb.year))
         .or_else(|| lenient.as_ref().and_then(|l| l.year));
 
-    Some((
-        Track {
+    let release = match tag {
+        Some(tag) => release_type(
+            tag.get_strings(ItemKey::MusicBrainzReleaseType),
+            tag.get_string(ItemKey::FlagCompilation)
+                .is_some_and(flagged),
+        ),
+        None => fallback
+            .as_ref()
+            .and_then(|fb| release_type(fb.release.iter().map(String::as_str), fb.compilation)),
+    };
+
+    Some(Tagged {
+        track: Track {
             id: Some(track_id(path)),
             name,
             playable: is_playable(path),
@@ -523,12 +559,20 @@ pub fn track_from_file(
         },
         album_artist,
         year,
-    ))
+        release,
+    })
 }
 
 /// Builds the album `tracks` were grouped under. `id` is the one the tracks carry, since it is
 /// keyed by folder rather than by `artist` when the files name no album artist.
-pub fn album_from_tracks(id: &str, name: &str, artist: &str, tracks: &[Track], year: i32) -> Album {
+pub fn album_from_tracks(
+    id: &str,
+    name: &str,
+    artist: &str,
+    tracks: &[Track],
+    year: i32,
+    release: ReleaseType,
+) -> Album {
     let cover = tracks.iter().find_map(|track| track.cover.clone());
     Album {
         id: id.to_owned(),
@@ -537,7 +581,7 @@ pub fn album_from_tracks(id: &str, name: &str, artist: &str, tracks: &[Track], y
         artist_refs: vec![artist_ref(artist)],
         cover: cover.clone(),
         cover_large: cover,
-        release_type: ReleaseType::Album,
+        release_type: release,
         year,
         track_count: tracks.len() as u32,
         release_date: String::new(),
@@ -695,6 +739,24 @@ fn cache_image_data(data: &[u8], media_type_or_ext: &str, cache_dir: &Path) -> O
     Some(format!("file://{}", dest.display()))
 }
 
+/// The release type MusicBrainz tags name, `None` when they name no type and no compilation flag.
+fn release_type<'a>(
+    types: impl IntoIterator<Item = &'a str>,
+    compilation: bool,
+) -> Option<ReleaseType> {
+    let mut types = types
+        .into_iter()
+        .filter(|kind| !kind.trim().is_empty())
+        .peekable();
+    (types.peek().is_some() || compilation)
+        .then(|| ReleaseType::from_musicbrainz(types, compilation))
+}
+
+/// Whether a flag tag such as `COMPILATION` or `TCMP` is set, which taggers write as `1`.
+fn flagged(value: &str) -> bool {
+    matches!(value.trim(), "1" | "true" | "True" | "TRUE")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -777,7 +839,9 @@ mod tests {
                 .unwrap()
                 .as_nanos()
         ));
-        let (track, ..) = track_from_file(path, None, None, &temp).expect("track parsed");
+        let track = track_from_file(path, None, None, &temp)
+            .expect("track parsed")
+            .track;
         assert!(track.playable);
         assert_eq!(track.name, "Chann Vi Gawah");
         assert_eq!(track.artists, "Madhav Mahajan");
@@ -806,7 +870,9 @@ mod tests {
         std::fs::write(&path, []).unwrap();
 
         let stamped = modified_at(&path).expect("a file just written has a modified time");
-        let (track, ..) = track_from_file(&path, None, None, &dir).expect("a track");
+        let track = track_from_file(&path, None, None, &dir)
+            .expect("a track")
+            .track;
 
         assert_eq!(track.added_at, Some(stamped));
         std::fs::remove_dir_all(&dir).ok();
@@ -818,12 +884,21 @@ mod tests {
         let path = dir.join("song.mp3");
         std::fs::write(&path, []).unwrap();
 
-        let (mut older, ..) = track_from_file(&path, None, None, &dir).expect("a track");
+        let mut older = track_from_file(&path, None, None, &dir)
+            .expect("a track")
+            .track;
         let mut newer = older.clone();
         older.added_at = Some(1_000);
         newer.added_at = Some(2_000);
 
-        let album = album_from_tracks("id", "Album", "Artist", &[older, newer], 2026);
+        let album = album_from_tracks(
+            "id",
+            "Album",
+            "Artist",
+            &[older, newer],
+            2026,
+            ReleaseType::Album,
+        );
 
         assert_eq!(album.added_at, Some(2_000));
         std::fs::remove_dir_all(&dir).ok();
@@ -848,6 +923,48 @@ mod tests {
         std::fs::write(&path, b"ID3\x04\x00\x00\x00\x00\x00\x00").unwrap();
 
         assert!(track_from_file(&path, None, None, &dir).is_some());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_release_type_comes_from_the_tags() {
+        let dir = scratch("sonora-wire-test-release-type");
+        let cases = [
+            (
+                "ep.flac",
+                &["ALBUM=The Path", "RELEASETYPE=ep"][..],
+                Some(ReleaseType::Ep),
+            ),
+            (
+                "single.flac",
+                &["RELEASETYPE=Single"],
+                Some(ReleaseType::Single),
+            ),
+            (
+                "album.flac",
+                &["RELEASETYPE=album"],
+                Some(ReleaseType::Album),
+            ),
+            (
+                "live.flac",
+                &["RELEASETYPE=album; compilation"],
+                Some(ReleaseType::Compilation),
+            ),
+            (
+                "flagged.flac",
+                &["COMPILATION=1"],
+                Some(ReleaseType::Compilation),
+            ),
+            ("untyped.flac", &["ALBUM=Untyped"], None),
+        ];
+        for (name, comments, expected) in cases {
+            let path = dir.join(name);
+            super::super::tags::tests::flac(&path, comments);
+
+            let tagged = track_from_file(&path, None, None, &dir).expect("a track");
+
+            assert_eq!(tagged.release, expected, "{name}");
+        }
         std::fs::remove_dir_all(&dir).ok();
     }
 }

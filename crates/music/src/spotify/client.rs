@@ -12,7 +12,8 @@ use crate::spotify::{
 };
 use crate::{
     Album, AlbumCatalogue, AlbumDetail, Artist, ArtistCatalogue, ArtistProfile, Genre, GenreDetail,
-    HomeFeed, Playlist, PlaylistDetail, SUGGESTIONS, SavedArtist, Track, UserDetail, UserProfile,
+    GenreItem, GenreSection, HomeFeed, Playlist, PlaylistDetail, SUGGESTIONS, SavedArtist, Track,
+    UserDetail, UserProfile,
 };
 
 const MADE_FOR_YOU: &str = "0JQ5DAt0tbjZptfcdMSKl3";
@@ -74,6 +75,7 @@ impl MusicApi for LibrespotClient {
         Ok(UserProfile {
             display_name,
             id: username,
+            avatar: None,
         })
     }
 
@@ -200,16 +202,28 @@ impl MusicApi for LibrespotClient {
         pathfinder::search_playlists(&self.session, query).await
     }
 
+    /// Spotify's own home feed followed by the Made For You shelves it leaves out, such as On
+    /// Repeat and Blends. Either half alone still makes a page, and the call fails only when
+    /// both do.
     async fn home(&self) -> Result<HomeFeed> {
-        let mut sections = pathfinder::genre(&self.session, MADE_FOR_YOU)
-            .await?
-            .sections;
-        playlists::name_blanks(&self.session, &mut sections).await;
+        let (home, made) = tokio::join!(
+            pathfinder::home(&self.session),
+            pathfinder::genre(&self.session, MADE_FOR_YOU),
+        );
+        let mut feed = home.unwrap_or_else(|error| {
+            log::warn!("home: cannot load the Spotify feed: {error:#}");
+            HomeFeed::default()
+        });
+        match made {
+            Ok(made) => appended(&mut feed, made.sections),
+            Err(error) if feed.listen_again.is_empty() && feed.sections.is_empty() => {
+                return Err(error);
+            }
+            Err(error) => log::warn!("home: cannot load Made For You: {error:#}"),
+        }
+        playlists::name_blanks(&self.session, &mut feed.sections).await;
 
-        Ok(HomeFeed {
-            sections,
-            ..HomeFeed::default()
-        })
+        Ok(feed)
     }
 
     async fn genres(&self) -> Result<Vec<Genre>> {
@@ -303,5 +317,44 @@ impl MusicApi for LibrespotClient {
         }
 
         Ok(playlists)
+    }
+}
+
+/// Puts `sections` after the feed's own shelves, leaving out every item a shelf already shows
+/// and every shelf whose title is already on the page or that ends up empty.
+fn appended(feed: &mut HomeFeed, sections: Vec<GenreSection>) {
+    let mut titles: HashSet<String> = feed
+        .sections
+        .iter()
+        .map(|section| section.title.clone())
+        .collect();
+    let mut shown: HashSet<String> = feed
+        .sections
+        .iter()
+        .flat_map(|section| &section.items)
+        .filter_map(shelf_key)
+        .collect();
+    for mut section in sections {
+        if titles.contains(&section.title) {
+            continue;
+        }
+        section
+            .items
+            .retain(|item| shelf_key(item).is_none_or(|key| shown.insert(key)));
+        if !section.items.is_empty() {
+            titles.insert(section.title.clone());
+            feed.sections.push(section);
+        }
+    }
+}
+
+/// What tells two shelf items apart, unique across kinds.
+fn shelf_key(item: &GenreItem) -> Option<String> {
+    match item {
+        GenreItem::Playlist(playlist) => Some(format!("playlist:{}", playlist.id)),
+        GenreItem::Album(album) => Some(format!("album:{}", album.id)),
+        GenreItem::Genre(genre) => Some(format!("genre:{}", genre.id)),
+        GenreItem::Track(track) => track.id.as_ref().map(|id| format!("track:{id}")),
+        GenreItem::Artist(artist) => Some(format!("artist:{}", artist.id)),
     }
 }

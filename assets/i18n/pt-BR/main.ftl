@@ -281,7 +281,6 @@ login-account-title = Escolha uma conta
 login-account-detail = Esta sessão está conectada a mais de uma conta Google. Escolha qual o Sonora deve usar.
 
 # album and playlist pages
-detail-album = Álbum
 detail-playlist = Playlist
 detail-play-album = Tocar álbum
 detail-play-playlist = Tocar playlist

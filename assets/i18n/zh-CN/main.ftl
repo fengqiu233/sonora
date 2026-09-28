@@ -281,7 +281,6 @@ login-account-title = 选择一个账户
 login-account-detail = 此会话登录了多个 Google 账户。请选择 Sonora 应使用的账户。
 
 # album and playlist pages
-detail-album = 专辑
 detail-playlist = 播放列表
 detail-play-album = 播放专辑
 detail-play-playlist = 播放该列表

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use gpui::{Context, Entity, Task};
 use music::{
     Album, AlbumCatalogue, AlbumDetail, ArtistRef, Contributor, Playlist, PlaylistDetail,
-    SavedArtist, Track,
+    ReleaseType, SavedArtist, Track,
 };
 use tokio::task::AbortHandle;
 
@@ -22,6 +22,8 @@ enum Loaded {
 
 pub struct Header {
     pub kind: Collection,
+    /// What kind of release an album is, `None` for a playlist.
+    pub release: Option<ReleaseType>,
     pub title: String,
     pub artist: Option<String>,
     pub artist_refs: Vec<ArtistRef>,
@@ -568,6 +570,7 @@ impl Detail {
 fn album_header(album: &Album) -> Header {
     Header {
         kind: Collection::Album,
+        release: Some(album.release_type),
         title: album.name.clone(),
         artist: Some(album.artists.clone()),
         artist_refs: album.artist_refs.clone(),
@@ -598,6 +601,7 @@ fn playlist_header(playlist: &Playlist) -> Header {
 
     Header {
         kind: Collection::Playlist,
+        release: None,
         title: playlist.name.clone(),
         artist: None,
         artist_refs: Vec::new(),

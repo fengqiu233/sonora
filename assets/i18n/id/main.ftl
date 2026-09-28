@@ -281,7 +281,6 @@ login-account-title = Pilih akun
 login-account-detail = Sesi ini terhubung ke lebih dari satu akun Google. Pilih akun yang ingin digunakan Sonora.
 
 # album and playlist pages
-detail-album = Album
 detail-playlist = Playlist
 detail-play-album = Putar album
 detail-play-playlist = Putar playlist

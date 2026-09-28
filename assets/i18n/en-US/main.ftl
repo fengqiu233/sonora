@@ -318,7 +318,6 @@ login-choose-title = Sign in to { $provider }
 login-choose-detail = Choose how to sign in to { $provider }.
 
 # album and playlist pages
-detail-album = Album
 detail-playlist = Playlist
 detail-play-album = Play album
 detail-play-playlist = Play playlist
@@ -716,6 +715,7 @@ settings-provider-connected = Connected
 settings-provider-current = Playing from this service
 settings-provider-guest = Playing as a guest
 settings-provider-switch = Switch to
+settings-profile-account = { $provider } · { $account }
 settings-sign-out = Sign out
 settings-group-scrobbling = Scrobbling
 settings-lastfm = Last.fm
@@ -822,6 +822,9 @@ toast-queue-failed = That could not be added to the queue
 toast-keys-refused = Spotify is not granting this account playback keys
 toast-sign-in-to-play = { $name } only streams to a signed-in listener
 toast-track-unplayable = { $name } could not be played
+toast-playback-stopped = Playback stopped after several tracks in a row could not be played
+toast-throttled = { $name } is limiting playback for now. Trying again in a moment
+toast-still-throttled = { $name } is still limiting playback. Press play to try again
 toast-library-add-failed = { $name } could not be added to your library
 toast-library-remove-failed = { $name } could not be removed from your library
 toast-library-added = Added to your library

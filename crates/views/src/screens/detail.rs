@@ -7,7 +7,7 @@ use gpui::{
 use std::rc::Rc;
 
 use i18n::t;
-use music::{Album, Playlist, Track};
+use music::{Album, Playlist, ReleaseType, Track};
 use router::{Destination, navigate};
 use state::{AppSettings, Collection, Detail, LibraryEvent, Origin, Playback, Sonora};
 use ui::{
@@ -349,6 +349,9 @@ impl DetailView {
         let kind = header
             .map(|header| header.kind)
             .unwrap_or(Collection::Album);
+        let release = header
+            .and_then(|header| header.release)
+            .unwrap_or(ReleaseType::Album);
         let title = header
             .map(|header| SharedString::from(header.title.clone()))
             .unwrap_or_default();
@@ -364,7 +367,10 @@ impl DetailView {
         let duration: std::time::Duration = listed.iter().map(|track| track.duration).sum();
         let (eyebrow, label) = match kind {
             Collection::Playlist => (t!("detail-playlist"), t!("detail-play-playlist")),
-            Collection::Album => (t!("detail-album"), t!("detail-play-album")),
+            Collection::Album => (
+                i18n::lookup(cards::release_key(release), None),
+                t!("detail-play-album"),
+            ),
         };
 
         let mut strip = HeroMetaStrip::new();

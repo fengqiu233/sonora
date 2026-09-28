@@ -39,13 +39,15 @@ enum Start {
     Burst,
     /// The queue moved on by itself, so a gapless engine keeps the tail of the last track.
     Segue,
+    /// The provider turned the last load down for now and the same track is asked for again.
+    Retry,
 }
 
 impl Start {
     fn debounce(self) -> Duration {
         match self {
             Self::Burst => SKIP_DEBOUNCE,
-            Self::Pick | Self::Skip | Self::Segue => Duration::ZERO,
+            Self::Pick | Self::Skip | Self::Segue | Self::Retry => Duration::ZERO,
         }
     }
 }
@@ -102,6 +104,15 @@ const PRELOAD_BEFORE_END: Duration = Duration::from_secs(10);
 const SKIP_DEBOUNCE: Duration = Duration::from_millis(250);
 const RESTART_WINDOW: Duration = Duration::from_secs(3);
 const KEY_COOLDOWN: Duration = Duration::from_secs(1);
+/// How many loads in a row may fail before the queue stops moving on by itself and waits for
+/// play.
+const FAILURE_LIMIT: u8 = 3;
+/// The wait before a track the provider turned down for now is asked for again. Each refusal in
+/// a row doubles it, up to `THROTTLE_CAP`.
+const THROTTLE_WAIT: Duration = Duration::from_secs(2);
+const THROTTLE_CAP: Duration = Duration::from_secs(30);
+/// How many refusals in a row a track is retried through before it is held paused until play.
+const THROTTLE_LIMIT: u8 = 6;
 const RESUME_STEP: Duration = Duration::from_secs(5);
 const TAPER_DB: f32 = 50.;
 const SIMILAR_LIMIT: usize = 20;
@@ -366,6 +377,11 @@ pub struct Playback {
     skipped: Option<Instant>,
     /// No load goes out before this after a track failed, so a bad key cannot be hammered.
     blocked_until: Option<Instant>,
+    /// Loads that failed since audio last played or the user last chose a track.
+    failures: u8,
+    /// Loads the provider turned down for now since audio last played or the user last picked a
+    /// track. It sets how long the next retry waits.
+    throttles: u8,
     refused: Option<Refusal>,
     /// Where the restored track resumes. Set until the engine has it ready or the user plays.
     resume_at: Option<Duration>,
@@ -478,6 +494,8 @@ impl Playback {
             preloaded: None,
             skipped: None,
             blocked_until: None,
+            failures: 0,
+            throttles: 0,
             refused: None,
             resume_at: None,
             seek_in_flight: None,
@@ -591,6 +609,12 @@ impl Playback {
             return;
         }
         self.silence_other(&id);
+        if !matches!(start, Start::Segue | Start::Retry) {
+            self.failures = 0;
+        }
+        if start == Start::Pick {
+            self.throttles = 0;
+        }
 
         self.track = Some(track.clone());
         self.state = PlaybackState::Loading;
@@ -614,6 +638,9 @@ impl Playback {
         self.load = Some(cx.spawn(async move |this, cx| {
             cx.background_executor().timer(wait).await;
             this.update(cx, |this, cx| {
+                if this.intent == Intent::Pause {
+                    return this.hold(at, cx);
+                }
                 let Some(engine) = this.engine_for(&id) else {
                     return;
                 };
@@ -1727,6 +1754,29 @@ impl Playback {
         self.prepare_resume(cx);
     }
 
+    /// Moves to the next playable track and holds it paused without fetching it, so play loads
+    /// it then. Leaves nothing loaded when the queue has run out.
+    fn hold_next(&mut self, cx: &mut Context<Self>) {
+        self.fetch = None;
+        self.track = self.playable_next(cx);
+        if self.track.is_some() {
+            self.hold(Duration::ZERO, cx);
+            self.remember(true, cx);
+        }
+    }
+
+    /// Keeps the current track paused at `at` without asking the engine for it, so play loads
+    /// it from there.
+    fn hold(&mut self, at: Duration, cx: &mut Context<Self>) {
+        self.intent = Intent::Pause;
+        self.state = PlaybackState::Paused;
+        self.position = at;
+        self.clock.reset(at, false);
+        self.resume_at = Some(at);
+        self.resume_ready = false;
+        cx.notify();
+    }
+
     /// Whether the user wants the current track playing, whatever the engine has managed so
     /// far. A transport control reads this; anything that follows the sound reads `state`.
     pub fn wants_playing(&self) -> bool {
@@ -2147,7 +2197,11 @@ impl Playback {
         }
         match event {
             BackendEvent::OutputChanged => self.restart_output(cx),
-            BackendEvent::Unavailable { .. } | BackendEvent::Refused if self.resume_ready => {
+            BackendEvent::Unavailable { .. }
+            | BackendEvent::Throttled { .. }
+            | BackendEvent::Refused
+                if self.resume_ready =>
+            {
                 self.resume_ready = false;
                 self.state = PlaybackState::Paused;
                 log::warn!("playback: cannot hold the restored track, waiting for play");
@@ -2162,6 +2216,8 @@ impl Playback {
                 let started = self.state != PlaybackState::Playing;
                 self.intent = Intent::Play;
                 self.state = PlaybackState::Playing;
+                self.failures = 0;
+                self.throttles = 0;
                 self.position = at;
                 self.clock.reset(at, true);
                 if started {
@@ -2228,6 +2284,7 @@ impl Playback {
                     false => self.advance(ended, cx),
                 }
             }
+            BackendEvent::Throttled { .. } => self.throttled(cx),
             BackendEvent::Unavailable { .. } if self.ask_for_reconnect(cx) => {
                 self.state = PlaybackState::Loading;
                 log::warn!("playback: the provider went stale, waiting for a reconnect");
@@ -2243,14 +2300,25 @@ impl Playback {
                     KEY_COOLDOWN.as_secs()
                 );
                 self.blocked_until = Some(Instant::now() + KEY_COOLDOWN);
+                self.failures = self.failures.saturating_add(1);
                 self.state = PlaybackState::Idle;
                 self.position = Duration::ZERO;
                 self.clock.reset(Duration::ZERO, false);
-                Toasts::linked(Outcome::Failed, "toast-track-unplayable", name, target, cx);
+                let exhausted = self.failures >= FAILURE_LIMIT;
+                match exhausted {
+                    true => {
+                        log::warn!("playback: {FAILURE_LIMIT} tracks failed in a row, stopping");
+                        Toasts::show(Outcome::Failed, "toast-playback-stopped", cx);
+                    }
+                    false => {
+                        Toasts::linked(Outcome::Failed, "toast-track-unplayable", name, target, cx)
+                    }
+                }
                 cx.emit(PlaybackEvent::EndedPlayback);
-                match self.repeat {
-                    Repeat::One => self.segue_queue(cx),
-                    _ => self.advance(failed, cx),
+                match (exhausted || self.intent == Intent::Pause, self.repeat) {
+                    (true, _) => self.hold_next(cx),
+                    (false, Repeat::One) => self.segue_queue(cx),
+                    (false, _) => self.advance(failed, cx),
                 }
             }
             BackendEvent::Refused => {
@@ -2281,6 +2349,8 @@ impl Playback {
             self.preloaded = None;
             self.skipped = None;
             self.blocked_until = None;
+            self.failures = 0;
+            self.throttles = 0;
             self.refused = None;
             self.track = None;
             self.origin = None;
@@ -2307,7 +2377,45 @@ impl Playback {
         cx.notify();
     }
 
-    /// Records that the provider wants a signed-in listener and stops until sign-in.
+    /// Asks for the current track again after the provider turned it down for now. The wait
+    /// doubles with each refusal in a row and only the first one toasts. Past `THROTTLE_LIMIT`,
+    /// or once the user has paused, the track is held until play.
+    fn throttled(&mut self, cx: &mut Context<Self>) {
+        let Some(track) = self.track.clone() else {
+            return;
+        };
+        let provider = self
+            .session
+            .read(cx)
+            .provider_name()
+            .unwrap_or("this provider")
+            .to_owned();
+        let at = self.position;
+        self.throttles = self.throttles.saturating_add(1);
+        if self.intent == Intent::Pause {
+            return self.hold(at, cx);
+        }
+        if self.throttles > THROTTLE_LIMIT {
+            log::warn!(
+                "playback: {provider} kept turning {} down, waiting for play",
+                track.name
+            );
+            Toasts::about(Outcome::Failed, "toast-still-throttled", provider, cx);
+            return self.hold(at, cx);
+        }
+        let wait = throttle_wait(self.throttles);
+        log::warn!(
+            "playback: {provider} turned {} down for now, retrying in {}s",
+            track.name,
+            wait.as_secs()
+        );
+        if self.throttles == 1 {
+            Toasts::about(Outcome::Failed, "toast-throttled", provider, cx);
+        }
+        self.blocked_until = Some(Instant::now() + wait);
+        self.load_from(&track, at, Start::Retry, cx);
+    }
+
     /// Turns down a track that has to be streamed while the network is gone. Whatever plays
     /// keeps playing, since a local file needs nothing, and only a track the user picked says
     /// so out loud: the queue moving on by itself would otherwise toast once a track.
@@ -2318,6 +2426,7 @@ impl Playback {
         }
     }
 
+    /// Records that the provider wants a signed-in listener and stops until sign-in.
     fn gate(&mut self, cx: &mut Context<Self>) {
         let first = self.refused.is_none();
         self.refused = Some(Refusal::SignIn);
@@ -2383,6 +2492,14 @@ fn song_target(track: &Track) -> Option<Target> {
         .id
         .as_deref()
         .map(|id| Target::Song(SharedString::from(id.to_owned())))
+}
+
+/// How long to wait before the retry that follows the `throttles`th refusal in a row.
+fn throttle_wait(throttles: u8) -> Duration {
+    let doublings = u32::from(throttles.saturating_sub(1)).min(8);
+    THROTTLE_WAIT
+        .saturating_mul(1 << doublings)
+        .min(THROTTLE_CAP)
 }
 
 #[cfg(test)]

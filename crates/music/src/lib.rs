@@ -180,6 +180,19 @@ pub trait MusicApi: Send + Sync {
     async fn played(&self, _track_id: &str, _at: SystemTime) -> Result<()> {
         Ok(())
     }
+
+    /// Tells the provider a track has started playing, so the play counts on the provider's
+    /// own side. A provider that keeps no history keeps the default and makes no request.
+    async fn report_play(&self, _track_id: &str) -> Result<()> {
+        Ok(())
+    }
+
+    /// The tracks the account has recently played, newest first, across every device. A provider
+    /// that keeps no cross-device history keeps the default and answers with nothing.
+    async fn recently_played(&self) -> Result<Vec<Track>> {
+        Ok(Vec::new())
+    }
+
     async fn playlists(&self) -> Result<Vec<Playlist>>;
     /// Changes the provider's own pin for `uri`, one of the uris `pin_targets` lists or
     /// `pin_uri` builds.
@@ -370,6 +383,11 @@ pub enum PlaybackEvent {
     Unavailable {
         id: Option<String>,
     },
+    /// The provider turned the load down for now, as it does under a rate limit, so the same
+    /// track may play after a wait.
+    Throttled {
+        id: Option<String>,
+    },
     Refused,
     Gated,
     OutputChanged,
@@ -385,7 +403,8 @@ impl PlaybackEvent {
             | Self::Seeked { id, .. }
             | Self::Length { id, .. }
             | Self::Ended { id, .. }
-            | Self::Unavailable { id, .. } => id.as_deref(),
+            | Self::Unavailable { id, .. }
+            | Self::Throttled { id } => id.as_deref(),
             _ => None,
         }
     }

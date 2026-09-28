@@ -317,7 +317,6 @@ login-choose-title = Hyr te { $provider }
 login-choose-detail = Zgjidh se si të hysh te { $provider }.
 
 # album and playlist pages
-detail-album = Album
 detail-playlist = Listë luajtjeje
 detail-play-album = Luaj albumin
 detail-play-playlist = Luaj listën e luajtjes

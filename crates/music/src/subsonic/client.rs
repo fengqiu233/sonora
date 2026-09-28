@@ -146,7 +146,10 @@ impl SubsonicClient {
             artist_refs,
             cover,
             cover_large: large,
-            release_type: crate::ReleaseType::Album,
+            release_type: wire::release_type(
+                detail.release_types.as_deref(),
+                detail.is_compilation,
+            ),
             year,
             track_count: detail
                 .song_count

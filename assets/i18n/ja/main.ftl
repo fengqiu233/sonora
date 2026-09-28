@@ -244,7 +244,6 @@ login-account-title = アカウントを選択
 login-account-detail = このセッションは複数の Google アカウントにサインインしています。Sonora が使うアカウントを選んでください。
 
 # album and playlist pages
-detail-album = アルバム
 detail-playlist = プレイリスト
 detail-play-album = アルバムを再生
 detail-play-playlist = プレイリストを再生

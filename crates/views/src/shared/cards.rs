@@ -255,9 +255,9 @@ pub(crate) fn release_filters(
         .collect()
 }
 
-/// A shelf item as one row of a list: `item_card` at the plain weight of a listed row, and
-/// a track or a playlist saying what it is under its name, so a mix is never mistaken for a
-/// song: "Song · Artist", "Playlist · Made for you · 50 songs".
+/// A shelf item as one row of a list, at the plain weight of a listed row. Tracks, releases
+/// and playlists say what they are under their name, as in "Song · Artist", "EP · 2023 ·
+/// Artist" or "Playlist · Made for you · 50 songs".
 pub(crate) fn listed(
     id: impl Into<ElementId>,
     item: &GenreItem,
@@ -271,6 +271,18 @@ pub(crate) fn listed(
         GenreItem::Track(track) => card.bare_meta(tagged(
             t!("kind-song"),
             track_artists(SharedString::new_static("listed-artist"), track, &theme),
+            &theme,
+        )),
+        GenreItem::Album(album) => card.bare_meta(tagged(
+            i18n::lookup(release_key(album.release_type), None),
+            released(
+                SharedString::new_static("listed-artist"),
+                album.year,
+                None,
+                &album.artist_refs,
+                album.artists.clone(),
+                &theme,
+            ),
             &theme,
         )),
         GenreItem::Playlist(playlist) => {

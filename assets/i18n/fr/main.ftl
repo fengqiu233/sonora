@@ -281,7 +281,6 @@ login-account-title = Choisir un compte
 login-account-detail = Cette session est connectée à plusieurs comptes Google. Choisissez celui que Sonora doit utiliser.
 
 # album and playlist pages
-detail-album = Album
 detail-playlist = Playlist
 detail-play-album = Lire l'album
 detail-play-playlist = Lire la playlist

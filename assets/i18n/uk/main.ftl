@@ -329,7 +329,6 @@ login-choose-title = Вхід у { $provider }
 login-choose-detail = Виберіть спосіб входу в { $provider }.
 
 # album and playlist pages
-detail-album = Альбом
 detail-playlist = Плейлист
 detail-play-album = Слухати альбом
 detail-play-playlist = Слухати плейлист
